@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: MedStorage-api
+
+  datasource:
+    url: jdbc:postgresql://localhost:${DB_PORT:5432}/${DB_NAME:medstorage}
+    username: ${DB_USER:medstorage}
+    password: ${DB_PASSWORD:medstorage}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false

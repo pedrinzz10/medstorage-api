@@ -35,3 +35,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Environment ###
+.env
+
+### Agent skills (local tooling, not project code) ###
+.agents/
+skills-lock.json
