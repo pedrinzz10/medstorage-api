@@ -1,6 +1,9 @@
 # API
 
-Documentação viva dos endpoints conforme implementados (exemplos reais de request/response testados, não apenas o contrato planejado). Ainda não há implementação.
+Documentação viva dos endpoints conforme implementados (exemplos reais de request/response testados, não apenas o contrato planejado).
+
+## Implementado
+- [auth.md](auth.md) — login, register, validate, refresh, logout (Sprint 1)
 
 ## Referências de planejamento
 - Contrato completo planejado: `docs/specs/03-api-contract.md`
