@@ -13,6 +13,10 @@ Documentação viva do banco conforme migrations são aplicadas — histórico d
 |---|---|---|---|
 | 1 | `V1__create_users_table.sql` | Tabela `users` (id, email, password_hash, nome, role, ativo, telefone) + índices em `email`/`role` + trigger de `updated_at` | Sprint 1 |
 | 2 | `V2__seed_dev_users.sql` | 3 usuários de desenvolvimento (admin, gerente, vendedor) com senhas hash bcrypt — ver `docs/auth/README.md` | Sprint 1 |
+| 3 | `V3__create_products_table.sql` | Tabela `products` + índices (`sku`, `nome`, `ativo`) + trigger de `updated_at` | Sprint 2 |
+| 4 | `V4__create_inventory_table.sql` | Tabela `inventory` (1:1 com `products`) + trigger de `updated_at` | Sprint 2 |
+| 5 | `V5__create_inventory_status_view.sql` | View `vw_inventory_status` (documentação/consulta manual — a API não usa esta view, calcula o status em Java) | Sprint 2 |
+| 6 | `V6__seed_products_and_inventory.sql` | 5 produtos de exemplo + 1000 unidades de estoque cada | Sprint 2 |
 
 Local dos arquivos: `src/main/resources/db/migration/`.
 
