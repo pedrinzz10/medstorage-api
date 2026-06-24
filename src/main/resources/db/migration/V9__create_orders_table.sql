@@ -22,6 +22,9 @@ CREATE TABLE orders (
   )
 );
 
+-- A aplicacao gera numero_pedido em Java (OrderService.generateNumeroPedido,
+-- usando a mesma sequence). Este trigger fica como rede de seguranca para
+-- qualquer insert direto via SQL que esqueca de preencher a coluna.
 CREATE OR REPLACE FUNCTION generate_order_number()
 RETURNS TRIGGER AS $$
 BEGIN
