@@ -2,8 +2,9 @@
 
 ## Estrutura
 
-| Pasta | Conteúdo |
+| Pasta/Arquivo | Conteúdo |
 |---|---|
+| `configuracao.md` | Referência consolidada de todas as propriedades de `application.yml` e variáveis de ambiente |
 | `inicial_docs/` | Documentação original recebida (requisitos, schema, guia de backend) — fonte histórica, não editar |
 | `specs/` | Specs técnicas consolidadas (visão, modelo de dados, contrato de API, regras de negócio, roadmap) — referência de planejamento |
 | `auth/` | Documentação de autenticação/autorização: JWT, papéis, Spring Security |
