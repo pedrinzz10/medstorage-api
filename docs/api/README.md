@@ -6,6 +6,7 @@ Documentação viva dos endpoints conforme implementados (exemplos reais de requ
 - [auth.md](auth.md) — login, register, validate, refresh, logout (Sprint 1)
 - [products-inventory.md](products-inventory.md) — listagem de produtos e status de estoque (Sprint 2)
 - [customers.md](customers.md) — CRUD de clientes (Sprint 3)
+- [orders.md](orders.md) — criação de pedidos e transição para ATENDIDO (Sprint 4)
 
 ## Referências de planejamento
 - Contrato completo planejado: `docs/specs/03-api-contract.md`

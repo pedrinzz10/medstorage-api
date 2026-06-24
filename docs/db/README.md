@@ -18,6 +18,9 @@ Documentação viva do banco conforme migrations são aplicadas — histórico d
 | 5 | `V5__create_inventory_status_view.sql` | View `vw_inventory_status` (documentação/consulta manual — a API não usa esta view, calcula o status em Java) | Sprint 2 |
 | 6 | `V6__seed_products_and_inventory.sql` | 5 produtos de exemplo + 1000 unidades de estoque cada | Sprint 2 |
 | 7 | `V7__create_customers_table.sql` | Tabela `customers` (com `dados_adicionais JSONB`) + índices (`nome`, `email`, `cnpj`) + trigger de `updated_at` | Sprint 3 |
+| 8 | `V8__create_inventory_movements_table.sql` | Tabela `inventory_movements` (histórico de IN/OUT) + índices | Sprint 4 |
+| 9 | `V9__create_orders_table.sql` | Tabela `orders` + sequence/trigger de geração de `numero_pedido` + CHECK de workflow de status + índices | Sprint 4 |
+| 10 | `V10__create_order_items_table.sql` | Tabela `order_items` (subtotal como coluna gerada) + índices | Sprint 4 |
 
 Local dos arquivos: `src/main/resources/db/migration/`.
 
