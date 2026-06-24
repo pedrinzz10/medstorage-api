@@ -10,5 +10,6 @@ Guias explicativos sobre cada ferramenta/tecnologia usada no projeto — o que �
 - [github-actions.md](github-actions.md)
 - [jacoco.md](jacoco.md)
 - [springdoc-openapi.md](springdoc-openapi.md)
+- [actuator.md](actuator.md)
 
 Conforme novas ferramentas forem introduzidas (ex.: Jacoco, springdoc-openapi), um novo arquivo é adicionado aqui.
