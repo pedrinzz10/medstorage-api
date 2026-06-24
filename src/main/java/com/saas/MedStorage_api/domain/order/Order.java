@@ -18,9 +18,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.generator.EventType;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
@@ -43,8 +41,7 @@ public class Order {
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID id;
 
-    @Generated(event = EventType.INSERT)
-    @Column(name = "numero_pedido", insertable = false, updatable = false)
+    @Column(name = "numero_pedido", updatable = false)
     private String numeroPedido;
 
     @ManyToOne
