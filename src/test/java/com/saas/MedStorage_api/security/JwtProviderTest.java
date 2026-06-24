@@ -3,8 +3,13 @@ package com.saas.MedStorage_api.security;
 import com.saas.MedStorage_api.domain.user.UserRole;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -41,28 +46,24 @@ class JwtProviderTest {
         assertFalse(jwtProvider.isValid("not-a-valid-token"));
     }
 
-    @Test
-    void parseClaims_withMalformedToken_throwsInvalidTokenException() {
-        assertThrows(InvalidTokenException.class, () -> jwtProvider.parseClaims("not-a-valid-token"));
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidTokenScenarios")
+    void parseClaims_withInvalidToken_throwsInvalidTokenException(String scenario, Supplier<String> tokenSupplier) {
+        assertThrows(InvalidTokenException.class, () -> jwtProvider.parseClaims(tokenSupplier.get()));
     }
 
-    @Test
-    void parseClaims_withTokenSignedByDifferentKey_throwsInvalidTokenException() {
-        JwtProvider otherProvider = new JwtProvider(
-                "another-secret-key-with-at-least-32-characters",
-                86400000L);
-        String token = otherProvider.generateToken(UUID.randomUUID(), "user@test.com", UserRole.VENDEDOR);
-
-        assertThrows(InvalidTokenException.class, () -> jwtProvider.parseClaims(token));
-    }
-
-    @Test
-    void parseClaims_withExpiredToken_throwsInvalidTokenException() {
-        JwtProvider shortLivedProvider = new JwtProvider(
-                "test-secret-key-with-at-least-32-characters-long",
-                -1000L);
-        String token = shortLivedProvider.generateToken(UUID.randomUUID(), "user@test.com", UserRole.VENDEDOR);
-
-        assertThrows(InvalidTokenException.class, () -> jwtProvider.parseClaims(token));
+    private static Stream<Arguments> invalidTokenScenarios() {
+        return Stream.of(
+                Arguments.of("token malformado (string arbitraria)",
+                        (Supplier<String>) () -> "not-a-valid-token"),
+                Arguments.of("token assinado com outra chave",
+                        (Supplier<String>) () -> new JwtProvider(
+                                "another-secret-key-with-at-least-32-characters", 86400000L)
+                                .generateToken(UUID.randomUUID(), "user@test.com", UserRole.VENDEDOR)),
+                Arguments.of("token expirado",
+                        (Supplier<String>) () -> new JwtProvider(
+                                "test-secret-key-with-at-least-32-characters-long", -1000L)
+                                .generateToken(UUID.randomUUID(), "user@test.com", UserRole.VENDEDOR))
+        );
     }
 }
