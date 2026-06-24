@@ -1,0 +1,8 @@
+version: 2
+secret:
+  ignored-paths:
+    # Credenciais sinteticas de usuarios de seed/dev (ver docs/auth/README.md),
+    # nao correspondem a nenhuma conta ou servico real. Usadas apenas em
+    # testes de integracao locais e na migration de seed.
+    - "src/test/java/com/saas/MedStorage_api/auth/AuthControllerIntegrationTest.java"
+    - "docs/auth/README.md"
