@@ -16,3 +16,4 @@ NNNN-titulo-curto.md
 - [0002-banco-de-dados-dev.md](0002-banco-de-dados-dev.md) — PostgreSQL via Docker local
 - [0003-envio-de-email.md](0003-envio-de-email.md) — SMTP via Mailgun
 - [0004-estrategia-de-branching-e-cicd.md](0004-estrategia-de-branching-e-cicd.md) — Git Flow completo + CI no GitHub Actions
+- [0005-email-fora-da-transacao-de-pedido.md](0005-email-fora-da-transacao-de-pedido.md) — envio de email após commit via TransactionSynchronizationManager
