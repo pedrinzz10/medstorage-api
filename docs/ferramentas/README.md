@@ -9,5 +9,6 @@ Guias explicativos sobre cada ferramenta/tecnologia usada no projeto — o que �
 - [git-flow.md](git-flow.md)
 - [github-actions.md](github-actions.md)
 - [jacoco.md](jacoco.md)
+- [springdoc-openapi.md](springdoc-openapi.md)
 
 Conforme novas ferramentas forem introduzidas (ex.: Jacoco, springdoc-openapi), um novo arquivo é adicionado aqui.
