@@ -170,6 +170,12 @@ public class OrderService {
     }
 
     private void registerNotificationAfterCommit(Order order) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            // Sem transacao Spring ativa (ex.: chamada direta em teste unitario) -
+            // nao ha commit para esperar, envia imediatamente.
+            notificationService.sendOrderReadyEmail(order);
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
