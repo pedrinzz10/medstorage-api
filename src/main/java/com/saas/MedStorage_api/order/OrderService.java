@@ -70,6 +70,7 @@ public class OrderService {
         User criadoPor = currentUser(authentication);
 
         Order order = Order.builder()
+                .numeroPedido(generateNumeroPedido())
                 .customer(customer)
                 .criadoPor(criadoPor)
                 .status(OrderStatus.PENDENTE)
@@ -98,7 +99,10 @@ public class OrderService {
         order.setDescontoAplicado(desconto);
         order.setValorTotal(valorBruto.subtract(desconto));
 
-        return OrderResponse.from(orderRepository.save(order));
+        // saveAndFlush forca a execucao do INSERT agora, para que o Hibernate
+        // recarregue numero_pedido (gerado pelo trigger no banco, ver @Generated
+        // no Order) antes de montar a resposta.
+        return OrderResponse.from(orderRepository.saveAndFlush(order));
     }
 
     public OrderResponse findById(UUID id) {
@@ -162,6 +166,18 @@ public class OrderService {
         String email = authentication.getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+    }
+
+    /**
+     * Gera o numero a partir da mesma sequence usada pelo trigger
+     * generate_order_number() (mantido no banco como rede de seguranca para
+     * inserts diretos via SQL). Gerar aqui em Java evita depender do
+     * Hibernate reler o valor setado pelo trigger apos o INSERT, o que se
+     * mostrou nao-deterministico dentro de transacoes de teste aninhadas.
+     */
+    private String generateNumeroPedido() {
+        long sequence = orderRepository.nextNumeroPedidoSequence();
+        return "PED-" + String.format("%06d", sequence);
     }
 
     private Order getOrThrow(UUID id) {

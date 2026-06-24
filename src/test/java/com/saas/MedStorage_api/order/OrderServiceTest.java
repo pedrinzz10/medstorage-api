@@ -79,6 +79,7 @@ class OrderServiceTest {
         lenient().when(userRepository.findByEmail(vendedor.getEmail())).thenReturn(Optional.of(vendedor));
         lenient().when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(orderRepository.saveAndFlush(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(orderRepository.nextNumeroPedidoSequence()).thenReturn(1000L);
     }
 
     @Test
