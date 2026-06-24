@@ -24,6 +24,8 @@ import com.saas.MedStorage_api.order.dto.OrderResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -96,15 +98,31 @@ class OrderServiceTest {
         assertEquals(1, response.items().size());
     }
 
-    @Test
-    void create_withDiscountAboveFiftyPercent_throwsBadRequestException() {
+    /**
+     * Analise de valores de fronteira: pedido de 5 unidades a R$10,00 tem
+     * valorBruto = 50.00, logo o desconto maximo permitido (50%) e 25.00.
+     */
+    @ParameterizedTest(name = "desconto de {0} -> permitido: {1}")
+    @CsvSource({
+            "-0.01, false",  // negativo, nunca permitido
+            "0.00,  true",   // sem desconto
+            "25.00, true",   // exatamente 50% (limite permitido)
+            "25.01, false",  // 1 centavo acima do limite
+            "50.00, false"   // desconto igual ao valor total
+    })
+    void create_validatesMaximumDiscountBoundary(BigDecimal desconto, boolean expectedAllowed) {
         CreateOrderRequest request = new CreateOrderRequest(
-                customer.getId(), List.of(new OrderItemRequest(luva.getId(), 5)), new BigDecimal("30.00"), "outro", null);
+                customer.getId(), List.of(new OrderItemRequest(luva.getId(), 5)), desconto, "outro", null);
 
         when(customerRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
         when(productRepository.findById(luva.getId())).thenReturn(Optional.of(luva));
 
-        assertThrows(BadRequestException.class, () -> orderService.create(request, authentication));
+        if (expectedAllowed) {
+            OrderResponse response = orderService.create(request, authentication);
+            assertEquals(new BigDecimal("50.00").subtract(desconto), response.valorTotal());
+        } else {
+            assertThrows(BadRequestException.class, () -> orderService.create(request, authentication));
+        }
     }
 
     @Test

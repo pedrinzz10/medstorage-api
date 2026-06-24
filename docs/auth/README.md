@@ -7,6 +7,27 @@
 - `SecurityConfig`: sessão stateless, CORS liberado, `/api/auth/login` público, `/api/auth/register` exige `ROLE_ADMIN`, todo o resto exige autenticação. Requisição sem token autenticado retorna **401** (customizado via `authenticationEntryPoint`, já que o padrão do Spring Security seria 403)
 - `AuthService` + `AuthController`: login, registro (admin-only), validação de token, refresh, logout
 
+## Autorização por papel (`@PreAuthorize`)
+A partir da Sprint 4, `SecurityConfig` tem `@EnableMethodSecurity`, permitindo restringir endpoints específicos por papel direto no controller, além das regras gerais do `SecurityFilterChain`:
+
+```java
+@PostMapping
+@PreAuthorize("hasAnyRole('VENDEDOR', 'ADMIN')")
+public ResponseEntity<OrderResponse> create(...) { ... }
+```
+
+Mapeamento atual (espelha a matriz de permissões de `docs/specs/01-overview.md`):
+
+| Endpoint | Papéis permitidos |
+|---|---|
+| `POST /api/auth/register` | `ADMIN` |
+| `POST /api/orders` | `VENDEDOR`, `ADMIN` |
+| `PATCH /api/orders/{id}/status` | `GERENTE_ESTOQUE`, `ADMIN` |
+
+Demais endpoints (produtos, estoque, clientes) exigem só autenticação, sem restrição de papel — qualquer usuário logado pode ler/escrever, já que vendedores e gerentes precisam consultar/manter esses dados no dia a dia.
+
+Usuário autenticado mas sem o papel exigido recebe **403** (via `AccessDeniedException` → `GlobalExceptionHandler`). Usuário não autenticado recebe **401** (via o `authenticationEntryPoint` customizado).
+
 ## Endpoints implementados
 
 | Endpoint | Autenticação | Observação |
