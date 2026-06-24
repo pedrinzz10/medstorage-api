@@ -12,6 +12,7 @@ Documentação viva do banco conforme migrations são aplicadas — histórico d
 | Versão | Arquivo | Descrição | Sprint |
 |---|---|---|---|
 | 1 | `V1__create_users_table.sql` | Tabela `users` (id, email, password_hash, nome, role, ativo, telefone) + índices em `email`/`role` + trigger de `updated_at` | Sprint 1 |
+| 2 | `V2__seed_dev_users.sql` | 3 usuários de desenvolvimento (admin, gerente, vendedor) com senhas hash bcrypt — ver `docs/auth/README.md` | Sprint 1 |
 
 Local dos arquivos: `src/main/resources/db/migration/`.
 
