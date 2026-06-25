@@ -23,10 +23,15 @@ public class OrderNotificationService {
 
     private final JavaMailSender mailSender;
     private final String fromAddress;
+    private final String fromName;
 
-    public OrderNotificationService(JavaMailSender mailSender, @Value("${app.mail.from}") String fromAddress) {
+    public OrderNotificationService(
+            JavaMailSender mailSender,
+            @Value("${app.mail.from}") String fromAddress,
+            @Value("${app.mail.from-name}") String fromName) {
         this.mailSender = mailSender;
         this.fromAddress = fromAddress;
+        this.fromName = fromName;
     }
 
     public void sendOrderReadyEmail(Order order) {
@@ -38,7 +43,7 @@ public class OrderNotificationService {
 
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromAddress);
+            message.setFrom(fromName + " <" + fromAddress + ">");
             message.setTo(recipient);
             message.setSubject("Pedido " + order.getNumeroPedido() + " esta pronto para retirada");
             message.setText(buildBody(order));
