@@ -13,34 +13,34 @@ GET    /api/auth/validate     → { valid, email, role }
 
 ## Pedidos (orders)
 ```
-POST   /api/orders                 → criar pedido (vendedor, admin)            → 201
-GET    /api/orders                 → listar com filtros + paginação           → 200
-GET    /api/orders/{id}             → detalhe                                  → 200 / 404
-PUT    /api/orders/{id}             → editar (somente status=PENDENTE)         → 200
-DELETE /api/orders/{id}             → deletar (somente status=PENDENTE)        → 204
-PATCH  /api/orders/{id}/status      → mudar status (gerente, admin)            → 200 / 400 (estoque insuf.)
+POST   /api/orders                 → criar pedido (vendedor, admin)            → 201       ✅ implementado
+GET    /api/orders                 → listar com filtros + paginação            → 200       ✅ implementado
+GET    /api/orders/{id}            → detalhe                                   → 200 / 404 ✅ implementado
+PATCH  /api/orders/{id}/status     → mudar status (gerente, admin)             → 200 / 400 ✅ implementado
+PUT    /api/orders/{id}            → editar pedido (somente status=PENDENTE)   → 200       🔜 Sprint 6+
+DELETE /api/orders/{id}            → deletar (somente status=PENDENTE)         → 204       🔜 Sprint 6+
 ```
 
-Filtros de `GET /api/orders`: `status`, `customerId`, `criadoPor`, `dataInicio`, `dataFim`, `valorMin`, `valorMax`, `page`, `size`, `sort`. Paginação: 20 itens/página por padrão. Filtros devem ser refletíveis na URL (frontend).
+Filtros de `GET /api/orders`: `status`, `customerId`, `criadoPor`, `dataInicio`, `dataFim`, `valorMin`, `valorMax`, `page`, `size`, `sort`. Paginação: 20 itens/página por padrão.
 
 ## Clientes (customers)
 ```
-POST   /api/customers                → criar                       → 201
-GET    /api/customers                → listar                      → 200
-GET    /api/customers/{id}            → detalhe + resumo de compras → 200 / 404
-PUT    /api/customers/{id}            → editar                      → 200
-GET    /api/customers/{id}/orders     → histórico de pedidos        → 200
+POST   /api/customers                → criar                       → 201       ✅ implementado
+GET    /api/customers                → listar paginado             → 200       ✅ implementado
+GET    /api/customers/{id}           → detalhe                     → 200 / 404 ✅ implementado
+PUT    /api/customers/{id}           → editar                      → 200       ✅ implementado
+GET    /api/customers/{id}/orders    → histórico de pedidos        → 200       🔜 Sprint 6+
 ```
 
 ## Produtos / Estoque
 ```
-GET    /api/products                  → listar paginado             → 200
-GET    /api/products/{id}             → detalhe                     → 200 / 404
-GET    /api/inventory                 → listar com estoque          → 200
-GET    /api/inventory/status          → status OK/BAIXO/CRÍTICO     → 200
-GET    /api/inventory/{productId}     → detalhe                     → 200 / 404
-POST   /api/inventory/movements       → histórico de movimentos     → 200
+GET    /api/products                  → listar ativos paginado                    → 200       ✅ implementado
+GET    /api/products/{id}             → detalhe                                   → 200 / 404 ✅ implementado
+GET    /api/inventory/status          → status OK/BAIXO/CRÍTICO de todos produtos → 200       ✅ implementado
+GET    /api/inventory/{productId}     → status de um produto                      → 200 / 404 ✅ implementado
 ```
+
+> Movimentos de estoque são criados internamente pelo `OrderService` ao marcar ATENDIDO (e futuramente por devoluções). Não há endpoint público de criação de movimentos no MVP.
 
 ## Devoluções
 ```
@@ -56,14 +56,17 @@ GET    /api/sellers/performance/all   → performance de todos (admin)   → 200
 GET    /api/commissions               → comissões pendentes             → 200
 ```
 
-## Convenções de erro (padronizar via `@ControllerAdvice`)
+## Convenções de erro (`GlobalExceptionHandler` via `@RestControllerAdvice`)
 ```json
-{ "error": "mensagem", "status": 400 }
+{ "error": "mensagem descritiva", "status": 400 }
 ```
-- 400: validação de payload / regra de negócio (ex.: estoque insuficiente, desconto > 50%)
+- 400: validação de payload / regra de negócio (ex.: estoque insuficiente, desconto > 50%, transição de status inválida)
 - 401: não autenticado / credenciais inválidas
 - 403: autenticado sem permissão para a ação
 - 404: recurso não encontrado
 
+Implementado em `exception/GlobalExceptionHandler.java` com `ApiError(String error, int status)`.
+
 ## Documentação
-Expor Swagger UI via `springdoc-openapi-starter-webmvc-ui` em `/swagger-ui.html`, com schemas gerados a partir dos DTOs.
+Swagger UI disponível em `/swagger-ui.html` via `springdoc-openapi-starter-webmvc-ui:2.8.5`.
+Controllers anotados com `@Tag`, `@Operation` e `@ApiResponse`. Autenticação JWT configurada via `OpenApiConfig.java`.
