@@ -21,10 +21,10 @@ spring:
     baseline-on-migrate: false
 
   mail:
-    host: ${MAILGUN_SMTP_HOST:smtp.mailgun.org}
-    port: ${MAILGUN_SMTP_PORT:587}
-    username: ${MAILGUN_SMTP_USERNAME:}
-    password: ${MAILGUN_SMTP_PASSWORD:}
+    host: ${MAIL_SMTP_HOST:sandbox.smtp.mailtrap.io}
+    port: ${MAIL_SMTP_PORT:587}
+    username: ${MAIL_SMTP_USERNAME:}
+    password: ${MAIL_SMTP_PASSWORD:}
     properties:
       mail:
         smtp:
