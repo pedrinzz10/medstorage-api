@@ -5,12 +5,14 @@ import com.saas.MedStorage_api.inventory.dto.InventoryStatusResponse;
 import com.saas.MedStorage_api.inventory.entity.Inventory;
 import com.saas.MedStorage_api.inventory.repository.InventoryRepository;
 import com.saas.MedStorage_api.product.entity.Product;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class InventoryService {
 
@@ -23,7 +25,9 @@ public class InventoryService {
     }
 
     public List<InventoryStatusResponse> getStatus() {
-        return inventoryRepository.findAllForActiveProducts().stream()
+        List<Inventory> inventories = inventoryRepository.findAllForActiveProducts();
+        log.debug("Consultando status de estoque: {} produtos ativos", inventories.size());
+        return inventories.stream()
                 .map(this::toStatusResponse)
                 .sorted(Comparator.comparing((InventoryStatusResponse r) -> SEVERITY_ORDER.indexOf(r.statusEstoque()))
                         .thenComparing(InventoryStatusResponse::nome))

@@ -11,9 +11,11 @@ import com.saas.MedStorage_api.security.JwtProvider;
 import com.saas.MedStorage_api.user.entity.User;
 import com.saas.MedStorage_api.user.enums.UserRole;
 import com.saas.MedStorage_api.user.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class AuthService {
 
@@ -32,9 +34,11 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            log.warn("Senha incorreta para user={}", request.email());
             throw new UnauthorizedException("Invalid credentials");
         }
 
+        log.info("Login realizado: user={}", request.email());
         String token = jwtProvider.generateToken(user.getId(), user.getEmail(), user.getRole());
         return new LoginResponse(token, UserSummaryResponse.from(user));
     }
@@ -60,6 +64,8 @@ public class AuthService {
                 .telefone(request.telefone())
                 .build();
 
-        return UserSummaryResponse.from(userRepository.save(user));
+        UserSummaryResponse response = UserSummaryResponse.from(userRepository.save(user));
+        log.info("Usuário registrado: email={} role={}", request.email(), request.role());
+        return response;
     }
 }
