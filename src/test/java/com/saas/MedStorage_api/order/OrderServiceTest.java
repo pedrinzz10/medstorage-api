@@ -37,6 +37,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
@@ -199,5 +200,30 @@ class OrderServiceTest {
 
         assertThrows(BadRequestException.class, () -> orderService.markAsAttended(order.getId(), authentication));
         verify(inventoryRepository, never()).findByProductId(any());
+    }
+
+    @Test
+    void markAsWithdrawn_withAttendedOrder_setsRetiradoStatusAndDate() {
+        Order order = pendingOrderWith(5);
+        order.setStatus(OrderStatus.ATENDIDO);
+        order.setDataAtendimento(java.time.LocalDateTime.now());
+
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        OrderResponse response = orderService.markAsWithdrawn(order.getId());
+
+        assertEquals("RETIRADO", response.status());
+        assertEquals(OrderStatus.RETIRADO, order.getStatus());
+        assertNotNull(order.getDataRetirada());
+    }
+
+    @Test
+    void markAsWithdrawn_withPendingOrder_throwsBadRequestException() {
+        Order order = pendingOrderWith(5);
+
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class, () -> orderService.markAsWithdrawn(order.getId()));
+        assertEquals(OrderStatus.PENDENTE, order.getStatus());
     }
 }
