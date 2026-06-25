@@ -23,13 +23,11 @@ Ver `docs/ferramentas/docker.md` (como rodar o banco local) e `docs/ferramentas/
 ## Email (`spring.mail`)
 | Variável de ambiente | Default (dev) | Descrição |
 |---|---|---|
-| `MAILGUN_SMTP_HOST` | `smtp.mailgun.org` | Host SMTP |
-| `MAILGUN_SMTP_PORT` | `587` | Porta SMTP |
-| `MAILGUN_SMTP_USERNAME` | _(vazio)_ | Usuário SMTP do Mailgun |
-| `MAILGUN_SMTP_PASSWORD` | _(vazio)_ | Senha/API key SMTP do Mailgun |
-| `MAIL_FROM` | `no-reply@distribuidor.com` | Remetente usado em `app.mail.from` |
+| `MAIL_USERNAME` | _(vazio)_ | Endereço Gmail da conta dedicada de teste — também usado como `app.mail.from` |
+| `MAIL_PASSWORD` | _(vazio)_ | Senha de app gerada para essa conta (nunca a senha normal) |
+| `MAIL_FROM_NAME` | `MedStorage` | Nome de exibição usado em `app.mail.from-name` |
 
-Sem credenciais reais, o envio falha (timeout/auth) — isso é esperado em dev e é capturado/logado, nunca quebra a aplicação. Ver `docs/ferramentas/smtp-mailgun.md` e `docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md`.
+Host (`smtp.gmail.com`) e porta (`587`) são fixos no `application.yml`, não configuráveis por variável. Sem credenciais reais, o envio falha (auth) — isso é esperado em dev e é capturado/logado, nunca quebra a aplicação. Ver `docs/ferramentas/smtp-gmail.md` e `docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md`.
 
 ## JWT (`jwt.*`, propriedade própria da aplicação)
 | Variável de ambiente | Default (dev) | Descrição |
