@@ -1,6 +1,6 @@
 package com.saas.MedStorage_api.order.dto;
 
-import com.saas.MedStorage_api.order.Order;
+import com.saas.MedStorage_api.order.entity.Order;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

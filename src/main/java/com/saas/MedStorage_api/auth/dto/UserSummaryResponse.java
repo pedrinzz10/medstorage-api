@@ -1,6 +1,6 @@
 package com.saas.MedStorage_api.auth.dto;
 
-import com.saas.MedStorage_api.user.User;
+import com.saas.MedStorage_api.user.entity.User;
 
 import java.util.UUID;
 

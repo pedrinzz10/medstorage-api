@@ -1,6 +1,6 @@
 package com.saas.MedStorage_api.security;
 
-import com.saas.MedStorage_api.user.UserRole;
+import com.saas.MedStorage_api.user.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

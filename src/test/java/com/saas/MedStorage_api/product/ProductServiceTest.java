@@ -1,7 +1,8 @@
 package com.saas.MedStorage_api.product;
 
-import com.saas.MedStorage_api.product.Product;
-import com.saas.MedStorage_api.product.ProductRepository;
+import com.saas.MedStorage_api.product.entity.Product;
+import com.saas.MedStorage_api.product.repository.ProductRepository;
+import com.saas.MedStorage_api.product.service.ProductService;
 import com.saas.MedStorage_api.exception.ResourceNotFoundException;
 import com.saas.MedStorage_api.product.dto.ProductResponse;
 import org.junit.jupiter.api.BeforeEach;
