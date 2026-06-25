@@ -1,6 +1,6 @@
 package com.saas.MedStorage_api.customer.dto;
 
-import com.saas.MedStorage_api.domain.customer.Customer;
+import com.saas.MedStorage_api.customer.Customer;
 
 import java.util.Map;
 import java.util.UUID;

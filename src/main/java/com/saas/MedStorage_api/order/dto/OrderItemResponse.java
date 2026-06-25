@@ -1,6 +1,6 @@
 package com.saas.MedStorage_api.order.dto;
 
-import com.saas.MedStorage_api.domain.order.OrderItem;
+import com.saas.MedStorage_api.order.OrderItem;
 
 import java.math.BigDecimal;
 import java.util.UUID;

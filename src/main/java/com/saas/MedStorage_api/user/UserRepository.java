@@ -1,4 +1,4 @@
-package com.saas.MedStorage_api.domain.user;
+package com.saas.MedStorage_api.user;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

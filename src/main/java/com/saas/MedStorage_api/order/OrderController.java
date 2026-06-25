@@ -1,6 +1,5 @@
 package com.saas.MedStorage_api.order;
 
-import com.saas.MedStorage_api.domain.order.OrderStatus;
 import com.saas.MedStorage_api.exception.BadRequestException;
 import com.saas.MedStorage_api.order.dto.ChangeOrderStatusRequest;
 import com.saas.MedStorage_api.order.dto.CreateOrderRequest;

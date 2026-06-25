@@ -1,4 +1,4 @@
-package com.saas.MedStorage_api.domain.product;
+package com.saas.MedStorage_api.product;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

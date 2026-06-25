@@ -1,7 +1,5 @@
-package com.saas.MedStorage_api.notification;
+package com.saas.MedStorage_api.order;
 
-import com.saas.MedStorage_api.domain.order.Order;
-import com.saas.MedStorage_api.domain.order.OrderItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

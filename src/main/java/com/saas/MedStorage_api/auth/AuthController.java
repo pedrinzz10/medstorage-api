@@ -5,7 +5,7 @@ import com.saas.MedStorage_api.auth.dto.LoginResponse;
 import com.saas.MedStorage_api.auth.dto.RegisterRequest;
 import com.saas.MedStorage_api.auth.dto.UserSummaryResponse;
 import com.saas.MedStorage_api.auth.dto.ValidateResponse;
-import com.saas.MedStorage_api.domain.user.UserRole;
+import com.saas.MedStorage_api.user.UserRole;
 import com.saas.MedStorage_api.security.JwtProvider;
 import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;

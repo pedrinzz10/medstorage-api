@@ -1,4 +1,4 @@
-package com.saas.MedStorage_api.domain.product;
+package com.saas.MedStorage_api.customer;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,18 +13,18 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
-@Table(name = "products")
+@Table(name = "customers")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Product {
+public class Customer {
 
     @Id
     @GeneratedValue
@@ -34,21 +34,20 @@ public class Product {
     @Column(nullable = false)
     private String nome;
 
-    private String descricao;
+    private String email;
 
-    @Column(nullable = false, unique = true)
-    private String sku;
+    private String telefone;
 
-    @Column(name = "preco_base", nullable = false)
-    private BigDecimal precoBase;
+    private String cnpj;
 
-    private String unidade;
+    private String endereco;
 
-    @Column(name = "estoque_minimo")
-    private Integer estoqueMinimo;
+    @Column(name = "contato_principal")
+    private String contatoPrincipal;
 
-    @Column(nullable = false)
-    private boolean ativo;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "dados_adicionais", columnDefinition = "jsonb")
+    private Map<String, Object> dadosAdicionais;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -1,8 +1,11 @@
-package com.saas.MedStorage_api.domain.order;
+package com.saas.MedStorage_api.inventorymovement;
 
-import com.saas.MedStorage_api.domain.product.Product;
+import com.saas.MedStorage_api.product.Product;
+import com.saas.MedStorage_api.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -13,23 +16,20 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.generator.EventType;
 import org.hibernate.type.SqlTypes;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "order_items")
+@Table(name = "inventory_movements")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrderItem {
+public class InventoryMovement {
 
     @Id
     @GeneratedValue
@@ -37,22 +37,28 @@ public class OrderItem {
     private UUID id;
 
     @ManyToOne
-    @JoinColumn(name = "order_id", nullable = false)
-    private Order order;
-
-    @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MovementType tipo;
 
     @Column(nullable = false)
     private int quantidade;
 
-    @Column(name = "preco_unitario", nullable = false)
-    private BigDecimal precoUnitario;
+    @Column(nullable = false)
+    private String motivo;
 
-    @Generated(event = EventType.INSERT)
-    @Column(insertable = false, updatable = false)
-    private BigDecimal subtotal;
+    @Column(name = "referencia_id")
+    private UUID referenciaId;
+
+    @Column(name = "referencia_tipo")
+    private String referenciaTipo;
+
+    @ManyToOne
+    @JoinColumn(name = "criado_por")
+    private User criadoPor;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;

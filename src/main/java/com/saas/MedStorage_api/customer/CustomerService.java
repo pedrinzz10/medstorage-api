@@ -2,8 +2,6 @@ package com.saas.MedStorage_api.customer;
 
 import com.saas.MedStorage_api.customer.dto.CustomerRequest;
 import com.saas.MedStorage_api.customer.dto.CustomerResponse;
-import com.saas.MedStorage_api.domain.customer.Customer;
-import com.saas.MedStorage_api.domain.customer.CustomerRepository;
 import com.saas.MedStorage_api.exception.ResourceNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

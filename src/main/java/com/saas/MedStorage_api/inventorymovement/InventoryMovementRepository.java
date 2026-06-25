@@ -1,4 +1,4 @@
-package com.saas.MedStorage_api.domain.inventorymovement;
+package com.saas.MedStorage_api.inventorymovement;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

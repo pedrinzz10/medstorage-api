@@ -1,4 +1,4 @@
-package com.saas.MedStorage_api.domain.order;
+package com.saas.MedStorage_api.order;
 
 import org.springframework.data.jpa.domain.Specification;
 

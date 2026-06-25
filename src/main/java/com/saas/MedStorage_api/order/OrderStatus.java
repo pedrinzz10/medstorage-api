@@ -1,4 +1,4 @@
-package com.saas.MedStorage_api.domain.order;
+package com.saas.MedStorage_api.order;
 
 public enum OrderStatus {
     PENDENTE,

@@ -1,4 +1,4 @@
-package com.saas.MedStorage_api.domain.user;
+package com.saas.MedStorage_api.user;
 
 public enum UserRole {
     VENDEDOR("vendedor"),

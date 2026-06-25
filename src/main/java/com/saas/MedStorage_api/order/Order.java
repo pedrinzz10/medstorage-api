@@ -1,7 +1,7 @@
-package com.saas.MedStorage_api.domain.order;
+package com.saas.MedStorage_api.order;
 
-import com.saas.MedStorage_api.domain.customer.Customer;
-import com.saas.MedStorage_api.domain.user.User;
+import com.saas.MedStorage_api.customer.Customer;
+import com.saas.MedStorage_api.user.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

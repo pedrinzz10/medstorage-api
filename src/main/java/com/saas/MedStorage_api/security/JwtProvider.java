@@ -1,6 +1,6 @@
 package com.saas.MedStorage_api.security;
 
-import com.saas.MedStorage_api.domain.user.UserRole;
+import com.saas.MedStorage_api.user.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
