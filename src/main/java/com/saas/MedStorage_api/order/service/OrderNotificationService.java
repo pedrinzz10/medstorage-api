@@ -2,8 +2,7 @@ package com.saas.MedStorage_api.order.service;
 
 import com.saas.MedStorage_api.order.entity.Order;
 import com.saas.MedStorage_api.order.entity.OrderItem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
@@ -16,10 +15,9 @@ import org.springframework.stereotype.Service;
  * de propagar a exececao - quem chama (OrderService) nao precisa saber se o
  * email foi enviado.
  */
+@Slf4j
 @Service
 public class OrderNotificationService {
-
-    private static final Logger log = LoggerFactory.getLogger(OrderNotificationService.class);
 
     private final JavaMailSender mailSender;
     private final String fromAddress;
