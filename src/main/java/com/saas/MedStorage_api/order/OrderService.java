@@ -10,6 +10,7 @@ import com.saas.MedStorage_api.domain.inventorymovement.MovementType;
 import com.saas.MedStorage_api.domain.order.Order;
 import com.saas.MedStorage_api.domain.order.OrderItem;
 import com.saas.MedStorage_api.domain.order.OrderRepository;
+import com.saas.MedStorage_api.domain.order.OrderSpecifications;
 import com.saas.MedStorage_api.domain.order.OrderStatus;
 import com.saas.MedStorage_api.domain.product.Product;
 import com.saas.MedStorage_api.domain.product.ProductRepository;
@@ -22,6 +23,8 @@ import com.saas.MedStorage_api.notification.OrderNotificationService;
 import com.saas.MedStorage_api.order.dto.CreateOrderRequest;
 import com.saas.MedStorage_api.order.dto.OrderItemRequest;
 import com.saas.MedStorage_api.order.dto.OrderResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -109,6 +112,21 @@ public class OrderService {
         return OrderResponse.from(getOrThrow(id));
     }
 
+    public Page<OrderResponse> findAll(
+            OrderStatus status,
+            UUID customerId,
+            UUID criadoPor,
+            LocalDateTime dataInicio,
+            LocalDateTime dataFim,
+            BigDecimal valorMin,
+            BigDecimal valorMax,
+            Pageable pageable) {
+        return orderRepository
+                .findAll(OrderSpecifications.withFilters(
+                        status, customerId, criadoPor, dataInicio, dataFim, valorMin, valorMax), pageable)
+                .map(OrderResponse::from);
+    }
+
     @Transactional
     public OrderResponse markAsAttended(UUID orderId, Authentication authentication) {
         Order order = getOrThrow(orderId);
@@ -150,6 +168,20 @@ public class OrderService {
         registerNotificationAfterCommit(saved);
 
         return OrderResponse.from(saved);
+    }
+
+    @Transactional
+    public OrderResponse markAsWithdrawn(UUID orderId) {
+        Order order = getOrThrow(orderId);
+
+        if (order.getStatus() != OrderStatus.ATENDIDO) {
+            throw new BadRequestException("Order cannot transition from " + order.getStatus() + " to RETIRADO");
+        }
+
+        order.setStatus(OrderStatus.RETIRADO);
+        order.setDataRetirada(LocalDateTime.now());
+
+        return OrderResponse.from(orderRepository.save(order));
     }
 
     private void validateDiscount(BigDecimal desconto, BigDecimal valorBruto) {

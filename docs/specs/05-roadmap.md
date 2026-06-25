@@ -10,7 +10,7 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 | 2 — Produtos + Estoque | ✅ Concluída | #4 | 93% |
 | 3 — CRUD Clientes | ✅ Concluída | #5 | 94% |
 | 4 — Pedidos: criação + ATENDIDO | ✅ Concluída | #6 | 87% |
-| 5 — RETIRADO + filtros avançados | ⏳ Próxima | — | — |
+| 5 — RETIRADO + filtros avançados | ✅ Concluída | #8 | 86% |
 | 6 — Devoluções | Não iniciada | — | — |
 | 7 — Performance + Comissões | Não iniciada | — | — |
 | 8 — Documentação, hardening e fechamento | Não iniciada | — | — |
