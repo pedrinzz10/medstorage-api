@@ -25,21 +25,40 @@
 ## GET /api/orders/{id}
 **200 OK:** detalhe completo do pedido. **404** — não encontrado. Qualquer papel autenticado pode consultar.
 
+## GET /api/orders
+Lista pedidos com filtros opcionais, paginação e ordenação. Qualquer papel autenticado pode consultar.
+
+**Query params (todos opcionais):**
+| Param | Tipo | Descrição |
+|---|---|---|
+| `status` | `PENDENTE`/`ATENDIDO`/`RETIRADO` | filtra por status exato |
+| `customerId` | UUID | filtra pedidos de um cliente |
+| `criadoPor` | UUID | filtra pedidos criados por um usuário (vendedor) |
+| `dataInicio` | ISO datetime (`2026-06-01T00:00:00`) | `createdAt >= dataInicio` |
+| `dataFim` | ISO datetime | `createdAt <= dataFim` |
+| `valorMin` | decimal | `valorTotal >= valorMin` |
+| `valorMax` | decimal | `valorTotal <= valorMax` |
+| `page`, `size`, `sort` | paginação Spring padrão | default `size=20` |
+
+Todos os filtros são combinados com `AND`. **200 OK** com `Page<OrderResponse>` (`content`, `totalElements`, `totalPages`, etc.).
+
 ## PATCH /api/orders/{id}/status
 **Papel exigido:** `gerente_estoque` ou `admin`.
 
-**Request:** `{ "newStatus": "ATENDIDO" }`
+**Request:** `{ "newStatus": "ATENDIDO" }` ou `{ "newStatus": "RETIRADO" }`
 
-> **Escopo desta sprint:** só a transição para `ATENDIDO` está implementada. Qualquer outro valor de `newStatus` (incluindo `RETIRADO`) retorna 400 `"Status transition to 'X' is not supported yet"` — `RETIRADO` é Sprint 5.
+Workflow é estritamente sequencial: `PENDENTE → ATENDIDO → RETIRADO`. Qualquer outro valor de `newStatus`, ou uma transição fora dessa ordem (ex.: `PENDENTE → RETIRADO`), retorna 400.
 
-Ao marcar `ATENDIDO`, dentro de uma única transação:
+**ATENDIDO** — dentro de uma única transação:
 1. Para cada item do pedido, verifica estoque suficiente (`inventory.quantidade >= item.quantidade`)
 2. Decrementa `inventory.quantidade` e cria um `InventoryMovement` (`tipo=OUT`, `motivo="Pedido {numeroPedido}"`)
 3. Atualiza `order.status = ATENDIDO` e `data_atendimento`
 4. **Depois que a transação é confirmada** (não antes — ver `docs/decisoes-tecnicas` para o porquê), envia o email de notificação ao cliente
 
-**200 OK** com `status: "ATENDIDO"` e `dataAtendimento` preenchida.
-**400** — estoque insuficiente em algum item (nenhuma alteração é persistida — transação inteira é revertida), ou pedido não está em `PENDENTE` (workflow é unidirecional).
+**RETIRADO** — exige que o pedido já esteja em `ATENDIDO`; apenas atualiza `order.status = RETIRADO` e `data_retirada` (não toca em estoque — a baixa já ocorreu ao marcar `ATENDIDO`).
+
+**200 OK** com o novo `status` e a respectiva data (`dataAtendimento`/`dataRetirada`) preenchida.
+**400** — estoque insuficiente em algum item ao marcar `ATENDIDO` (transação inteira é revertida), ou pedido fora da ordem esperada do workflow.
 **404** — pedido ou inventário do produto não encontrado.
 **403** — papel diferente de gerente/admin.
 
