@@ -2,13 +2,15 @@ package com.saas.MedStorage_api.notification;
 
 import com.saas.MedStorage_api.domain.order.Order;
 import com.saas.MedStorage_api.domain.order.OrderItem;
+import io.mailtrap.client.MailtrapClient;
+import io.mailtrap.model.request.emails.Address;
+import io.mailtrap.model.request.emails.MailtrapMail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * Falha de envio nao deve impedir a transicao de status do pedido (regra de
@@ -21,12 +23,17 @@ public class OrderNotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderNotificationService.class);
 
-    private final JavaMailSender mailSender;
+    private final MailtrapClient mailtrapClient;
     private final String fromAddress;
+    private final String fromName;
 
-    public OrderNotificationService(JavaMailSender mailSender, @Value("${app.mail.from}") String fromAddress) {
-        this.mailSender = mailSender;
+    public OrderNotificationService(
+            MailtrapClient mailtrapClient,
+            @Value("${app.mail.from}") String fromAddress,
+            @Value("${app.mail.from-name}") String fromName) {
+        this.mailtrapClient = mailtrapClient;
         this.fromAddress = fromAddress;
+        this.fromName = fromName;
     }
 
     public void sendOrderReadyEmail(Order order) {
@@ -36,14 +43,17 @@ public class OrderNotificationService {
             return;
         }
 
+        MailtrapMail mail = MailtrapMail.builder()
+                .from(new Address(fromAddress, fromName))
+                .to(List.of(new Address(recipient)))
+                .subject("Pedido " + order.getNumeroPedido() + " esta pronto para retirada")
+                .text(buildBody(order))
+                .category("Pedido pronto para retirada")
+                .build();
+
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromAddress);
-            message.setTo(recipient);
-            message.setSubject("Pedido " + order.getNumeroPedido() + " esta pronto para retirada");
-            message.setText(buildBody(order));
-            mailSender.send(message);
-        } catch (MailException ex) {
+            mailtrapClient.send(mail);
+        } catch (Exception ex) {
             log.warn("Falha ao enviar email de notificacao do pedido {}: {}", order.getNumeroPedido(), ex.getMessage());
         }
     }

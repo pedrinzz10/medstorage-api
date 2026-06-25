@@ -20,33 +20,14 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: false
 
-  mail:
-    host: ${MAIL_SMTP_HOST:sandbox.smtp.mailtrap.io}
-    port: ${MAIL_SMTP_PORT:587}
-    username: ${MAIL_SMTP_USERNAME:}
-    password: ${MAIL_SMTP_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
-
 jwt:
   secret: ${JWT_SECRET:dev-only-secret-please-override-in-production-1234567890}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
+mailtrap:
+  api-token: ${MAILTRAP_API_TOKEN:}
+
 app:
   mail:
     from: ${MAIL_FROM:no-reply@distribuidor.com}
-
-management:
-  health:
-    mail:
-      # Falha de SMTP nao deve marcar a aplicacao como DOWN (ver
-      # docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md):
-      # notificacao por email e best-effort, nao um requisito de saude do app.
-      enabled: false
+    from-name: ${MAIL_FROM_NAME:MedStorage}
