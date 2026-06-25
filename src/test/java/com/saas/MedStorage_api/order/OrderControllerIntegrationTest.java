@@ -153,6 +153,71 @@ class OrderControllerIntegrationTest {
         int quantidadeDepois = Integer.parseInt(afterStatus.split("\"quantidadeAtual\":")[1].split(",")[0]);
 
         org.junit.jupiter.api.Assertions.assertEquals(quantidadeAntes - 10, quantidadeDepois);
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"newStatus\":\"RETIRADO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RETIRADO"))
+                .andExpect(jsonPath("$.dataRetirada").exists());
+    }
+
+    @Test
+    void markAsWithdrawn_withPendingOrder_returns400() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"newStatus\":\"RETIRADO\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void findAll_filterByStatus_returnsOnlyMatchingOrders() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        mockMvc.perform(post("/api/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + vendedorToken)
+                .content("{\"customerId\":\"" + customerId
+                        + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"));
+
+        mockMvc.perform(get("/api/orders?status=PENDENTE&page=0&size=50")
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].status").value("PENDENTE"));
+    }
+
+    @Test
+    void findAll_filterByCustomerId_returnsOnlyThatCustomersOrders() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        mockMvc.perform(post("/api/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + vendedorToken)
+                .content("{\"customerId\":\"" + customerId
+                        + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"));
+
+        mockMvc.perform(get("/api/orders?customerId=" + customerId + "&page=0&size=50")
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].customerId").value(customerId));
     }
 
     @Test
