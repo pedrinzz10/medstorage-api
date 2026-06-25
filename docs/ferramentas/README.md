@@ -5,7 +5,7 @@ Guias explicativos sobre cada ferramenta/tecnologia usada no projeto â€” o que Ã
 - [spring-boot.md](spring-boot.md)
 - [flyway.md](flyway.md)
 - [docker.md](docker.md)
-- [smtp-mailtrap.md](smtp-mailtrap.md)
+- [mailtrap.md](mailtrap.md)
 - [git-flow.md](git-flow.md)
 - [github-actions.md](github-actions.md)
 - [jacoco.md](jacoco.md)

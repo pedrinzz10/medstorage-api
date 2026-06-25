@@ -20,16 +20,14 @@ Ver `docs/ferramentas/docker.md` (como rodar o banco local) e `docs/ferramentas/
 - `locations: classpath:db/migration`
 - Ver `docs/ferramentas/flyway.md`, incluindo a pegadinha do Spring Boot 4 (dependência `spring-boot-flyway` separada).
 
-## Email (`spring.mail`)
+## Email (`mailtrap.*`, `app.mail.*`)
 | Variável de ambiente | Default (dev) | Descrição |
 |---|---|---|
-| `MAIL_SMTP_HOST` | `sandbox.smtp.mailtrap.io` | Host SMTP |
-| `MAIL_SMTP_PORT` | `587` | Porta SMTP |
-| `MAIL_SMTP_USERNAME` | _(vazio)_ | Usuário SMTP do Mailtrap |
-| `MAIL_SMTP_PASSWORD` | _(vazio)_ | Senha SMTP do Mailtrap |
+| `MAILTRAP_API_TOKEN` | _(vazio)_ | Token da API de Sending do Mailtrap |
 | `MAIL_FROM` | `no-reply@distribuidor.com` | Remetente usado em `app.mail.from` |
+| `MAIL_FROM_NAME` | `MedStorage` | Nome de exibição usado em `app.mail.from-name` |
 
-Sem credenciais reais, o envio falha (timeout/auth) — isso é esperado em dev e é capturado/logado, nunca quebra a aplicação. Ver `docs/ferramentas/smtp-mailtrap.md` e `docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md`.
+Sem token real, o envio falha (erro de autenticação na API) — isso é esperado em dev e é capturado/logado, nunca quebra a aplicação. Ver `docs/ferramentas/mailtrap.md` e `docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md`.
 
 ## JWT (`jwt.*`, propriedade própria da aplicação)
 | Variável de ambiente | Default (dev) | Descrição |

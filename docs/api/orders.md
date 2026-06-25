@@ -44,4 +44,4 @@ Ao marcar `ATENDIDO`, dentro de uma única transação:
 **403** — papel diferente de gerente/admin.
 
 ## Email de notificação
-Falha no envio (ex.: credenciais SMTP inválidas/ausentes) é capturada e logada como warning — **nunca bloqueia ou desfaz** a transição de status, conforme `docs/specs/04-business-rules.md` regra 4. Não há fila de retry automática nesta sprint (ver `docs/ferramentas/smtp-mailgun.md`).
+Falha no envio (ex.: token Mailtrap inválido/ausente) é capturada e logada como warning — **nunca bloqueia ou desfaz** a transição de status, conforme `docs/specs/04-business-rules.md` regra 4. Não há fila de retry automática nesta sprint (ver `docs/ferramentas/mailtrap.md`).

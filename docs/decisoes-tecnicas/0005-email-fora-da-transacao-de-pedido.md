@@ -14,7 +14,7 @@ Regra de negócio (US-011 / `docs/specs/04-business-rules.md` regra 4): ao marca
 - **Extrair para um segundo bean e usar `@Transactional` próprio:** funcionaria, mas adicionaria uma classe só para evitar o problema de auto-invocação do Spring AOP — `TransactionSynchronizationManager` resolve isso sem nova abstração.
 
 ## Consequências
-- Não há fila de retry automática para emails que falham — só log de warning (ver `docs/ferramentas/smtp-mailgun.md`). Se isso se tornar um problema real em produção, considerar uma fila (ex.: tabela de "notificações pendentes" + job, ou um message broker).
+- Não há fila de retry automática para emails que falham — só log de warning (ver `docs/ferramentas/mailtrap.md`). Se isso se tornar um problema real em produção, considerar uma fila (ex.: tabela de "notificações pendentes" + job, ou um message broker).
 - Qualquer novo fluxo que precise "fazer algo só se a transação principal for bem-sucedida, mas sem fazer parte da atomicidade dela" deve seguir o mesmo padrão.
 
 ## Achado relacionado: geração de `numero_pedido` movida para Java
