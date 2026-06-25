@@ -3,6 +3,10 @@ package com.saas.MedStorage_api.customer.controller;
 import com.saas.MedStorage_api.customer.dto.CustomerRequest;
 import com.saas.MedStorage_api.customer.dto.CustomerResponse;
 import com.saas.MedStorage_api.customer.service.CustomerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+@Tag(name = "Clientes", description = "Cadastro e consulta de clientes (hospitais, clínicas, distribuidores)")
 @RestController
 @RequestMapping("/api/customers")
 public class CustomerController {
@@ -29,21 +34,38 @@ public class CustomerController {
         this.customerService = customerService;
     }
 
+    @Operation(summary = "Criar cliente")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Cliente criado com sucesso"),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos")
+    })
     @PostMapping
     public ResponseEntity<CustomerResponse> create(@Valid @RequestBody CustomerRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(customerService.create(request));
     }
 
+    @Operation(summary = "Listar clientes", description = "Retorna lista paginada de todos os clientes")
+    @ApiResponse(responseCode = "200", description = "Lista de clientes")
     @GetMapping
     public ResponseEntity<Page<CustomerResponse>> findAll(@PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(customerService.findAll(pageable));
     }
 
+    @Operation(summary = "Buscar cliente por ID")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Cliente encontrado"),
+        @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<CustomerResponse> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(customerService.findById(id));
     }
 
+    @Operation(summary = "Atualizar cliente")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Cliente atualizado"),
+        @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
+    })
     @PutMapping("/{id}")
     public ResponseEntity<CustomerResponse> update(@PathVariable UUID id, @Valid @RequestBody CustomerRequest request) {
         return ResponseEntity.ok(customerService.update(id, request));
