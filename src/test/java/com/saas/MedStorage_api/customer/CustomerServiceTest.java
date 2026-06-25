@@ -2,8 +2,9 @@ package com.saas.MedStorage_api.customer;
 
 import com.saas.MedStorage_api.customer.dto.CustomerRequest;
 import com.saas.MedStorage_api.customer.dto.CustomerResponse;
-import com.saas.MedStorage_api.domain.customer.Customer;
-import com.saas.MedStorage_api.domain.customer.CustomerRepository;
+import com.saas.MedStorage_api.customer.entity.Customer;
+import com.saas.MedStorage_api.customer.repository.CustomerRepository;
+import com.saas.MedStorage_api.customer.service.CustomerService;
 import com.saas.MedStorage_api.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

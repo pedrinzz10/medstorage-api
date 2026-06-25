@@ -1,8 +1,9 @@
 package com.saas.MedStorage_api.inventory;
 
-import com.saas.MedStorage_api.domain.inventory.Inventory;
-import com.saas.MedStorage_api.domain.inventory.InventoryRepository;
-import com.saas.MedStorage_api.domain.product.Product;
+import com.saas.MedStorage_api.inventory.entity.Inventory;
+import com.saas.MedStorage_api.inventory.repository.InventoryRepository;
+import com.saas.MedStorage_api.inventory.service.InventoryService;
+import com.saas.MedStorage_api.product.entity.Product;
 import com.saas.MedStorage_api.exception.ResourceNotFoundException;
 import com.saas.MedStorage_api.inventory.dto.InventoryStatusResponse;
 import org.junit.jupiter.api.Test;
