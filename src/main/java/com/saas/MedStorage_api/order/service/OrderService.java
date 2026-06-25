@@ -22,6 +22,7 @@ import com.saas.MedStorage_api.product.entity.Product;
 import com.saas.MedStorage_api.product.repository.ProductRepository;
 import com.saas.MedStorage_api.user.entity.User;
 import com.saas.MedStorage_api.user.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -35,6 +36,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class OrderService {
 
@@ -67,6 +69,7 @@ public class OrderService {
 
     @Transactional
     public OrderResponse create(CreateOrderRequest request, Authentication authentication) {
+        log.info("Criando pedido: customer={} itens={} user={}", request.customerId(), request.items().size(), authentication.getName());
         Customer customer = customerRepository.findById(request.customerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
         User criadoPor = currentUser(authentication);
@@ -104,7 +107,9 @@ public class OrderService {
         // saveAndFlush forca a execucao do INSERT agora, para que o Hibernate
         // recarregue numero_pedido (gerado pelo trigger no banco, ver @Generated
         // no Order) antes de montar a resposta.
-        return OrderResponse.from(orderRepository.saveAndFlush(order));
+        OrderResponse response = OrderResponse.from(orderRepository.saveAndFlush(order));
+        log.info("Pedido {} criado: valor={}", response.numeroPedido(), response.valorTotal());
+        return response;
     }
 
     public OrderResponse findById(UUID id) {
@@ -164,6 +169,7 @@ public class OrderService {
         order.setDataAtendimento(LocalDateTime.now());
         Order saved = orderRepository.save(order);
 
+        log.info("Pedido {} marcado como ATENDIDO por user={}", saved.getNumeroPedido(), authentication.getName());
         registerNotificationAfterCommit(saved);
 
         return OrderResponse.from(saved);
@@ -180,7 +186,9 @@ public class OrderService {
         order.setStatus(OrderStatus.RETIRADO);
         order.setDataRetirada(LocalDateTime.now());
 
-        return OrderResponse.from(orderRepository.save(order));
+        Order saved = orderRepository.save(order);
+        log.info("Pedido {} marcado como RETIRADO", saved.getNumeroPedido());
+        return OrderResponse.from(saved);
     }
 
     private void validateDiscount(BigDecimal desconto, BigDecimal valorBruto) {
