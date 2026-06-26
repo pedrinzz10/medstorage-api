@@ -1,6 +1,8 @@
 package com.saas.MedStorage_api.order.repository;
 
 import com.saas.MedStorage_api.order.entity.Order;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -11,4 +13,6 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
 
     @Query(value = "select nextval('order_numero_seq')", nativeQuery = true)
     long nextNumeroPedidoSequence();
+
+    Page<Order> findByCustomer_Id(UUID customerId, Pageable pageable);
 }

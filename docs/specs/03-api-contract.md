@@ -19,8 +19,8 @@ POST   /api/orders                 → criar pedido (vendedor, admin)           
 GET    /api/orders                 → listar com filtros + paginação            → 200       ✅ implementado
 GET    /api/orders/{id}            → detalhe                                   → 200 / 404 ✅ implementado
 PATCH  /api/orders/{id}/status     → mudar status (gerente, admin)             → 200 / 400 ✅ implementado
-PUT    /api/orders/{id}            → editar pedido (somente status=PENDENTE)   → 200       🔜 Sprint 6+
-DELETE /api/orders/{id}            → deletar (somente status=PENDENTE)         → 204       🔜 Sprint 6+
+PUT    /api/orders/{id}            → editar pedido (somente status=PENDENTE)   → 200       ✅ implementado
+DELETE /api/orders/{id}            → deletar (somente status=PENDENTE)         → 204       ✅ implementado
 ```
 
 Filtros de `GET /api/orders`: `status`, `customerId`, `criadoPor`, `dataInicio`, `dataFim`, `valorMin`, `valorMax`, `page`, `size`, `sort`. Paginação: 20 itens/página por padrão.
@@ -31,7 +31,7 @@ POST   /api/customers                → criar                       → 201    
 GET    /api/customers                → listar paginado             → 200       ✅ implementado
 GET    /api/customers/{id}           → detalhe                     → 200 / 404 ✅ implementado
 PUT    /api/customers/{id}           → editar                      → 200       ✅ implementado
-GET    /api/customers/{id}/orders    → histórico de pedidos        → 200       🔜 Sprint 6+
+GET    /api/customers/{id}/orders    → histórico de pedidos        → 200       ✅ implementado
 ```
 
 ## Produtos / Estoque

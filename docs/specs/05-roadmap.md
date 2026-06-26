@@ -17,6 +17,7 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 | 6 — Devoluções | ✅ Concluída | #18 | — |
 | 7 — Performance + Comissões | ✅ Concluída | #24 | — |
 | 8 — Hardening e fechamento | ✅ Concluída | #26 | — |
+| 9 — Edição/exclusão de pedidos + histórico de cliente | ✅ Concluída | #29 | — |
 
 ## Sprint 1 — Setup + Autenticação
 - `docker-compose.yml` com PostgreSQL local para desenvolvimento (`Dockerfile` e serviço `app` adicionados posteriormente — PR #12)
@@ -70,6 +71,14 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 - `TooManyRequestsException` + handler 429 no `GlobalExceptionHandler`
 - `X-Forwarded-For` suportado para apps atrás de proxy/load balancer
 - Cobertura ≥ 80% mantida (JaCoCo enforced no CI)
+
+## Sprint 9 — Edição/exclusão de pedidos + histórico de cliente
+- Migration V15: view `vw_customer_summary` (total_pedidos, valor_total_gasto, ultima_compra por cliente)
+- `PUT /api/orders/{id}` → editar pedido `PENDENTE`: substitui itens, recalcula valor, valida desconto. Requer `VENDEDOR` ou `ADMIN`
+- `DELETE /api/orders/{id}` → excluir pedido `PENDENTE` (204). Requer `VENDEDOR` ou `ADMIN`
+- `GET /api/customers/{id}/orders` → histórico paginado de pedidos do cliente (404 se cliente inexistente)
+- `OrderRepository.findByCustomer_Id` — derivado do Spring Data JPA
+- 5 novos testes unitários (`OrderServiceTest`) + 7 novos testes de integração
 
 ## Decisões técnicas (confirmadas)
 - **Migrations:** Flyway (`flyway-core` + `flyway-database-postgresql`), scripts versionados em `src/main/resources/db/migration`
