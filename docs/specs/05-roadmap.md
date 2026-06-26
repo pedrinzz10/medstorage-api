@@ -14,7 +14,7 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 | Email Gmail SMTP (complemento Sprint 4) | ✅ Concluída | #10 | — |
 | Refactor — Estrutura modular (sub-pacotes) | ✅ Concluída | #11 | — |
 | Portfolio — README, Docker, Swagger, Logging | ✅ Concluída | #12 | — |
-| 6 — Devoluções | Não iniciada | — | — |
+| 6 — Devoluções | ✅ Concluída | #18 | — |
 | 7 — Performance + Comissões | Não iniciada | — | — |
 | 8 — Documentação, hardening e fechamento | Não iniciada | — | — |
 
@@ -48,8 +48,11 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 - Filtros de `GET /api/orders` (status, cliente, vendedor, data, valor) + paginação/ordenação
 
 ## Sprint 6 — Devoluções
-- `Return`, `ReturnItem`
-- `POST /api/returns`, `PATCH /api/returns/{id}/process` → incrementa estoque, registra movimento `IN`
+- `Return`, `ReturnItem` — pacote `returns/` com sub-pacotes `entity/`, `dto/`, `repository/`, `service/`, `controller/`, `enums/`
+- Migrations V11 (tabela `returns` + sequence `return_numero_seq` + trigger) e V12 (tabela `return_items`)
+- `POST /api/returns` → cria devolução `PENDENTE` para pedido `RETIRADO`; valida que os produtos pertencem ao pedido e que as quantidades não excedem o pedido
+- `GET /api/returns` / `GET /api/returns/{id}` → listagem paginada e detalhe
+- `PATCH /api/returns/{id}/process` → status `PROCESSADO`, incrementa estoque com `InventoryMovement` tipo `IN`, motivo `"Devolução DEV-XXXXXX"`
 
 ## Sprint 7 — Performance de Vendedores + Comissões
 - Views `vw_seller_performance_current_month` mapeadas em queries/DTOs
