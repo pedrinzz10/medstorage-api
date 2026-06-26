@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: medstorage-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-medstorage}
+      POSTGRES_USER: ${DB_USER:-medstorage}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-medstorage}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - medstorage_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-medstorage} -d ${DB_NAME:-medstorage}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: medstorage-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${DB_NAME:-medstorage}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  medstorage_postgres_data:

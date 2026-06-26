@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: MedStorage-api
+
+  datasource:
+    url: jdbc:postgresql://localhost:${DB_PORT:5432}/${DB_NAME:medstorage}
+    username: ${DB_USER:medstorage}
+    password: ${DB_PASSWORD:medstorage}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:} # pragma: allowlist secret
+    password: ${MAIL_PASSWORD:} # pragma: allowlist secret
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+jwt:
+  secret: ${JWT_SECRET:__REMOVED__}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+app:
+  mail:
+    from: ${MAIL_USERNAME:no-reply@distribuidor.com}
+    from-name: ${MAIL_FROM_NAME:MedStorage}
+
+management:
+  health:
+    mail:
+      # Falha de SMTP nao deve marcar a aplicacao como DOWN (ver
+      # docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md):
+      # notificacao por email e best-effort, nao um requisito de saude do app.
+      enabled: false
