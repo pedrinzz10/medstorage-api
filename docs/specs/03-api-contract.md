@@ -55,10 +55,12 @@ Número gerado automaticamente: `DEV-NNNNNN` (sequence no banco, gerado em Java 
 
 ## Performance / Comissões
 ```
-GET    /api/sellers/performance       → performance do vendedor logado → 200
-GET    /api/sellers/performance/all   → performance de todos (admin)   → 200
-GET    /api/commissions               → comissões pendentes             → 200
+GET    /api/sellers/performance       → performance do vendedor logado no mês corrente     → 200  ✅ implementado
+GET    /api/sellers/performance/all   → performance de todos os vendedores (admin)         → 200  ✅ implementado
+GET    /api/commissions               → listar comissões paginado (filtro ?status=)        → 200  ✅ implementado
 ```
+
+Performance baseia-se na view `vw_seller_performance_current_month` (pedidos `RETIRADO` no mês corrente). Sem pedidos no mês retorna zeros. `GET /api/commissions` é restrito a `ADMIN`; `GET /api/sellers/performance` aceita `VENDEDOR` ou `ADMIN`; `/all` aceita apenas `ADMIN`.
 
 ## Convenções de erro (`GlobalExceptionHandler` via `@RestControllerAdvice`)
 ```json
