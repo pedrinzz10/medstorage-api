@@ -2,11 +2,9 @@ package com.saas.MedStorage_api.order;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import com.saas.MedStorage_api.IntegrationTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -23,9 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * valida que o fluxo principal (status + estoque) funciona independente
  * do email.
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-@Transactional
+@IntegrationTest
 class OrderControllerIntegrationTest {
 
     private static final char[] ADMIN_SECRET = {'A', 'd', 'm', 'i', 'n', '1', '2', '3', '!'};

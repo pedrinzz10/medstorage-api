@@ -2,11 +2,9 @@ package com.saas.MedStorage_api.auth;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import com.saas.MedStorage_api.IntegrationTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -19,9 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * codigo-fonte - isso evita falsos positivos de scanners de secrets (ver
  * docs/decisoes-tecnicas para contexto).
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-@Transactional
+@IntegrationTest
 class AuthControllerIntegrationTest {
 
     private static final String ADMIN_EMAIL = "admin@distribuidor.com";
