@@ -132,6 +132,54 @@ public class OrderService {
     }
 
     @Transactional
+    public void delete(UUID id) {
+        Order order = getOrThrow(id);
+        if (order.getStatus() != OrderStatus.PENDENTE) {
+            throw new BadRequestException("Only PENDENTE orders can be deleted");
+        }
+        orderRepository.delete(order);
+        log.info("Pedido {} excluido", order.getNumeroPedido());
+    }
+
+    @Transactional
+    public OrderResponse update(UUID id, CreateOrderRequest request, Authentication authentication) {
+        Order order = getOrThrow(id);
+        if (order.getStatus() != OrderStatus.PENDENTE) {
+            throw new BadRequestException("Only PENDENTE orders can be updated");
+        }
+
+        Customer customer = customerRepository.findById(request.customerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+        order.setCustomer(customer);
+        order.setTipoDesconto(request.tipoDesconto());
+        order.setNotas(request.notas());
+
+        order.getItems().clear();
+
+        BigDecimal valorBruto = BigDecimal.ZERO;
+        for (OrderItemRequest itemRequest : request.items()) {
+            Product product = productRepository.findById(itemRequest.productId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + itemRequest.productId()));
+            BigDecimal subtotal = product.getPrecoBase().multiply(BigDecimal.valueOf(itemRequest.quantidade()));
+            valorBruto = valorBruto.add(subtotal);
+            order.addItem(OrderItem.builder()
+                    .product(product)
+                    .quantidade(itemRequest.quantidade())
+                    .precoUnitario(product.getPrecoBase())
+                    .build());
+        }
+
+        BigDecimal desconto = request.descontoAplicado() == null ? BigDecimal.ZERO : request.descontoAplicado();
+        validateDiscount(desconto, valorBruto);
+        order.setDescontoAplicado(desconto);
+        order.setValorTotal(valorBruto.subtract(desconto));
+
+        Order saved = orderRepository.saveAndFlush(order);
+        log.info("Pedido {} atualizado por user={}", saved.getNumeroPedido(), authentication.getName());
+        return OrderResponse.from(saved);
+    }
+
+    @Transactional
     public OrderResponse markAsAttended(UUID orderId, Authentication authentication) {
         Order order = getOrThrow(orderId);
 
