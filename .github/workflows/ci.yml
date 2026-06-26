@@ -45,7 +45,7 @@ jobs:
           DB_USER: medstorage
           DB_PASSWORD: medstorage
           DB_PORT: 5432
-          JWT_SECRET: ci-test-only-not-used-in-production # pragma: allowlist secret
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: ./gradlew build jacocoTestReport jacocoTestCoverageVerification --no-daemon
 
       - name: Upload coverage report
