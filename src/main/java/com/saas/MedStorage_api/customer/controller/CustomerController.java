@@ -3,6 +3,7 @@ package com.saas.MedStorage_api.customer.controller;
 import com.saas.MedStorage_api.customer.dto.CustomerRequest;
 import com.saas.MedStorage_api.customer.dto.CustomerResponse;
 import com.saas.MedStorage_api.customer.service.CustomerService;
+import com.saas.MedStorage_api.order.dto.OrderResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -69,5 +70,17 @@ public class CustomerController {
     @PutMapping("/{id}")
     public ResponseEntity<CustomerResponse> update(@PathVariable UUID id, @Valid @RequestBody CustomerRequest request) {
         return ResponseEntity.ok(customerService.update(id, request));
+    }
+
+    @Operation(summary = "Listar pedidos do cliente", description = "Histórico paginado de todos os pedidos do cliente")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Lista de pedidos"),
+        @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
+    })
+    @GetMapping("/{id}/orders")
+    public ResponseEntity<Page<OrderResponse>> getOrders(
+            @PathVariable UUID id,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(customerService.getOrders(id, pageable));
     }
 }
