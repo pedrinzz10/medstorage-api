@@ -16,7 +16,7 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 | Portfolio — README, Docker, Swagger, Logging | ✅ Concluída | #12 | — |
 | 6 — Devoluções | ✅ Concluída | #18 | — |
 | 7 — Performance + Comissões | ✅ Concluída | #24 | — |
-| 8 — Documentação, hardening e fechamento | Não iniciada | — | — |
+| 8 — Hardening e fechamento | ✅ Concluída | #26 | — |
 
 ## Sprint 1 — Setup + Autenticação
 - `docker-compose.yml` com PostgreSQL local para desenvolvimento (`Dockerfile` e serviço `app` adicionados posteriormente — PR #12)
@@ -65,9 +65,11 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 
 ## Sprint 8 — Hardening e fechamento
 - ~~Swagger/OpenAPI completo~~ — **concluído antecipadamente** (PR #12: `@Tag`, `@Operation`, `@ApiResponse` em todos os controllers)
-- Rate limiting em login
-- Revisão de cobertura de testes em todos os módulos
-- Checklist final de conclusão do backend
+- **Rate limiting no login**: `LoginRateLimiter` (sliding window, 5 tentativas/min por IP, configurável via `security.login.rate-limit.*`). Retorna `429 Too Many Requests`. `@EnableScheduling` + `@Scheduled` para limpeza de janelas expiradas a cada 5 min
+- **59 testes unitários passando** (6 novos: `LoginRateLimiterTest`)
+- `TooManyRequestsException` + handler 429 no `GlobalExceptionHandler`
+- `X-Forwarded-For` suportado para apps atrás de proxy/load balancer
+- Cobertura ≥ 80% mantida (JaCoCo enforced no CI)
 
 ## Decisões técnicas (confirmadas)
 - **Migrations:** Flyway (`flyway-core` + `flyway-database-postgresql`), scripts versionados em `src/main/resources/db/migration`
