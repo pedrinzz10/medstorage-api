@@ -11,12 +11,15 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 | 3 — CRUD Clientes | ✅ Concluída | #5 | 94% |
 | 4 — Pedidos: criação + ATENDIDO | ✅ Concluída | #6 | 87% |
 | 5 — RETIRADO + filtros avançados | ✅ Concluída | #8 | 86% |
+| Email Gmail SMTP (complemento Sprint 4) | ✅ Concluída | #10 | — |
+| Refactor — Estrutura modular (sub-pacotes) | ✅ Concluída | #11 | — |
+| Portfolio — README, Docker, Swagger, Logging | ✅ Concluída | #12 | — |
 | 6 — Devoluções | Não iniciada | — | — |
 | 7 — Performance + Comissões | Não iniciada | — | — |
 | 8 — Documentação, hardening e fechamento | Não iniciada | — | — |
 
 ## Sprint 1 — Setup + Autenticação
-- `docker-compose.yml` com PostgreSQL local para desenvolvimento
+- `docker-compose.yml` com PostgreSQL local para desenvolvimento (`Dockerfile` e serviço `app` adicionados posteriormente — PR #12)
 - Flyway configurado (`flyway-core`, `flyway-database-postgresql`) + primeira migration (`V1__create_users_table.sql`)
 - Projeto Spring Boot compilando (`./gradlew build`)
 - Entidade `User`, `UserRepository`
@@ -52,8 +55,8 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 - Views `vw_seller_performance_current_month` mapeadas em queries/DTOs
 - `GET /api/sellers/performance`, `/all`, `GET /api/commissions`
 
-## Sprint 8 — Documentação, hardening e fechamento
-- Swagger/OpenAPI completo (`springdoc-openapi`)
+## Sprint 8 — Hardening e fechamento
+- ~~Swagger/OpenAPI completo~~ — **concluído antecipadamente** (PR #12: `@Tag`, `@Operation`, `@ApiResponse` em todos os controllers)
 - Rate limiting em login
 - Revisão de cobertura de testes em todos os módulos
 - Checklist final de conclusão do backend
@@ -61,7 +64,7 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 ## Decisões técnicas (confirmadas)
 - **Migrations:** Flyway (`flyway-core` + `flyway-database-postgresql`), scripts versionados em `src/main/resources/db/migration`
 - **Banco de dev:** PostgreSQL via Docker local (`docker-compose.yml` na raiz do projeto)
-- **Email:** `spring-boot-starter-mail` configurado com SMTP do Mailgun (sandbox/free tier para dev)
+- **Email:** `spring-boot-starter-mail` configurado com Gmail SMTP (PR #10). Envio ocorre em `afterCommit()` para não acoplar ao rollback da transação. Credenciais via `.env` (`SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`).
 
 ## Definition of Done (por sprint)
 - [ ] `./gradlew build` — BUILD SUCCESSFUL
