@@ -23,8 +23,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME:} # pragma: allowlist secret # pragma: allowlist secret
-    password: ${MAIL_PASSWORD:} # pragma: allowlist secret # pragma: allowlist secret
+    username: ${MAIL_USERNAME:} # pragma: allowlist secret
+    password: ${MAIL_PASSWORD:} # pragma: allowlist secret
     properties:
       mail:
         smtp:
