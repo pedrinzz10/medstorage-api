@@ -44,10 +44,14 @@ GET    /api/inventory/{productId}     → status de um produto                  
 
 ## Devoluções
 ```
-POST   /api/returns                   → registrar devolução (pedido deve estar RETIRADO) → 201
-GET    /api/returns                   → listar                                          → 200
-PATCH  /api/returns/{id}/process       → processar (incrementa estoque)                 → 200
+POST   /api/returns                   → registrar devolução (pedido deve estar RETIRADO) → 201       ✅ implementado
+GET    /api/returns                   → listar paginado                                 → 200       ✅ implementado
+GET    /api/returns/{id}              → detalhe                                         → 200 / 404 ✅ implementado
+PATCH  /api/returns/{id}/process      → processar (incrementa estoque, tipo IN)         → 200       ✅ implementado
 ```
+
+Fluxo de status: `PENDENTE → PROCESSADO`. Devolução só é permitida em pedido `RETIRADO`.
+Número gerado automaticamente: `DEV-NNNNNN` (sequence no banco, gerado em Java como o `PED-NNNNNN` dos pedidos).
 
 ## Performance / Comissões
 ```
