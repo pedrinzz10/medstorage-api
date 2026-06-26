@@ -4,12 +4,14 @@ Base path: `/api`. Autenticação: JWT Bearer (exceto `/api/auth/login`).
 
 ## Autenticação
 ```
-POST   /api/auth/login        → { token, user }     (401 se credenciais inválidas, 404 se usuário não existe)
+POST   /api/auth/login        → { token, user }     (401 se senha inválida, 404 se não existe, 429 se rate limit)
 POST   /api/auth/logout       → invalida token
 POST   /api/auth/refresh      → novo token
 POST   /api/auth/register     → cria usuário (admin only)
 GET    /api/auth/validate     → { valid, email, role }
 ```
+
+`POST /api/auth/login` é protegido por rate limiting: máximo de **5 tentativas por minuto por IP**. Excedido, retorna `429 Too Many Requests`. Limite configurável via `security.login.rate-limit.max-attempts` e `security.login.rate-limit.window-seconds`.
 
 ## Pedidos (orders)
 ```
@@ -70,6 +72,7 @@ Performance baseia-se na view `vw_seller_performance_current_month` (pedidos `RE
 - 401: não autenticado / credenciais inválidas
 - 403: autenticado sem permissão para a ação
 - 404: recurso não encontrado
+- 429: rate limit excedido (login — máximo 5 tentativas/minuto por IP)
 
 Implementado em `exception/GlobalExceptionHandler.java` com `ApiError(String error, int status)`.
 
