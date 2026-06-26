@@ -15,7 +15,7 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 | Refactor — Estrutura modular (sub-pacotes) | ✅ Concluída | #11 | — |
 | Portfolio — README, Docker, Swagger, Logging | ✅ Concluída | #12 | — |
 | 6 — Devoluções | ✅ Concluída | #18 | — |
-| 7 — Performance + Comissões | Não iniciada | — | — |
+| 7 — Performance + Comissões | ✅ Concluída | #24 | — |
 | 8 — Documentação, hardening e fechamento | Não iniciada | — | — |
 
 ## Sprint 1 — Setup + Autenticação
@@ -55,8 +55,13 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 - `PATCH /api/returns/{id}/process` → status `PROCESSADO`, incrementa estoque com `InventoryMovement` tipo `IN`, motivo `"Devolução DEV-XXXXXX"`
 
 ## Sprint 7 — Performance de Vendedores + Comissões
-- Views `vw_seller_performance_current_month` mapeadas em queries/DTOs
-- `GET /api/sellers/performance`, `/all`, `GET /api/commissions`
+- Migration V13: tabela `commissions` com `valor_comissao` como coluna gerada (`valor_vendido * taxa / 100`)
+- Migration V14: view `vw_seller_performance_current_month` (pedidos `RETIRADO` no mês corrente, agrupados por vendedor)
+- Módulo `seller/`: `SellerPerformanceView` (entidade `@Immutable` mapeada à view), service e controller
+- Módulo `commission/`: entity, DTO, repository, service e controller
+- `GET /api/sellers/performance` → performance do vendedor logado (zeros se sem pedidos no mês)
+- `GET /api/sellers/performance/all` → todos os vendedores com pedidos no mês (ADMIN)
+- `GET /api/commissions?status=` → listagem paginada de comissões (ADMIN)
 
 ## Sprint 8 — Hardening e fechamento
 - ~~Swagger/OpenAPI completo~~ — **concluído antecipadamente** (PR #12: `@Tag`, `@Operation`, `@ApiResponse` em todos os controllers)
