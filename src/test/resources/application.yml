@@ -1,4 +1,0 @@
-security:
-  login:
-    rate-limit:
-      max-attempts: 1000
