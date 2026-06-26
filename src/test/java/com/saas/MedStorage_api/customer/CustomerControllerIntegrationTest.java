@@ -76,6 +76,31 @@ class CustomerControllerIntegrationTest {
     }
 
     @Test
+    void getOrders_withExistingCustomer_returns200WithPagedOrders() throws Exception {
+        String token = adminToken();
+
+        String customerJson = mockMvc.perform(post("/api/customers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token)
+                        .content("{\"nome\":\"Hospital Pedidos\",\"email\":\"pedidos@hospital.com\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String customerId = customerJson.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(get("/api/customers/" + customerId + "/orders")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    void getOrders_withUnknownCustomer_returns404() throws Exception {
+        mockMvc.perform(get("/api/customers/" + UUID.randomUUID() + "/orders")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void fullLifecycle_createListGetUpdate() throws Exception {
         String token = adminToken();
 
