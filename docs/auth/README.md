@@ -55,10 +55,10 @@ Migration `V2__seed_dev_users.sql` cria 3 usuários para testar localmente — *
 `application.yml`:
 ```yaml
 jwt:
-  secret: ${JWT_SECRET:__REMOVED__}
+  secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}   # 24h
 ```
-Em produção, `JWT_SECRET` **precisa** ser sobrescrito por uma variável de ambiente com um valor forte e secreto — o default só existe para desenvolvimento local funcionar sem configuração extra.
+`JWT_SECRET` é obrigatório — a aplicação falha ao iniciar se não estiver definido. Defina no `.env` local (ver `.env.example`).
 
 ## Teste manual rápido
 ```bash

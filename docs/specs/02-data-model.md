@@ -90,4 +90,11 @@ products (1) ──→ (N) return_items
 - `inventory_movements(product_id, created_at DESC)`
 
 ## DDL completo
-O DDL executável (CREATE TABLE, views, triggers, seeds) está em `docs/inicial_docs/SCHEMA_BANCO_DADOS.md`, seções 2–5. Será adaptado para migrations (Flyway/Liquibase — decisão pendente, ver `05-roadmap.md`).
+O DDL executável está distribuído nas migrations Flyway em `src/main/resources/db/migration/`:
+- V1–V2: users (schema + seed de usuários de dev)
+- V3–V6: products, inventory, view de status, seed de produtos/inventário
+- V7: customers
+- V8: inventory_movements
+- V9–V10: orders, order_items
+
+Tabelas futuras (returns, return_items, commissions) serão adicionadas nas migrations de Sprint 6 e 7. O DDL de referência completo está em `docs/inicial_docs/SCHEMA_BANCO_DADOS.md`.
