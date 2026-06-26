@@ -45,6 +45,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -226,5 +227,64 @@ class OrderServiceTest {
 
         assertThrows(BadRequestException.class, () -> orderService.markAsWithdrawn(order.getId()));
         assertEquals(OrderStatus.PENDENTE, order.getStatus());
+    }
+
+    @Test
+    void delete_withPendingOrder_callsRepositoryDelete() {
+        Order order = pendingOrderWith(5);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        orderService.delete(order.getId());
+
+        verify(orderRepository).delete(order);
+    }
+
+    @Test
+    void delete_withAttendedOrder_throwsBadRequestException() {
+        Order order = pendingOrderWith(5);
+        order.setStatus(OrderStatus.ATENDIDO);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class, () -> orderService.delete(order.getId()));
+        verify(orderRepository, never()).delete(any(Order.class));
+    }
+
+    @Test
+    void delete_withUnknownId_throwsResourceNotFoundException() {
+        UUID unknownId = UUID.randomUUID();
+        when(orderRepository.findById(unknownId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> orderService.delete(unknownId));
+    }
+
+    @Test
+    void update_withPendingOrder_replacesItemsAndRecalculatesTotal() {
+        Order order = pendingOrderWith(5);
+        Product seringa = Product.builder().id(UUID.randomUUID()).nome("Seringa").precoBase(new BigDecimal("5.00")).build();
+        CreateOrderRequest request = new CreateOrderRequest(
+                customer.getId(), List.of(new OrderItemRequest(seringa.getId(), 3)), null, null, "obs");
+
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        when(customerRepository.findById(customer.getId())).thenReturn(Optional.of(customer));
+        when(productRepository.findById(seringa.getId())).thenReturn(Optional.of(seringa));
+
+        OrderResponse response = orderService.update(order.getId(), request, authentication);
+
+        assertEquals(new BigDecimal("15.00"), response.valorTotal());
+        assertEquals(1, response.items().size());
+        verify(orderRepository).saveAndFlush(any(Order.class));
+    }
+
+    @Test
+    void update_withAttendedOrder_throwsBadRequestException() {
+        Order order = pendingOrderWith(5);
+        order.setStatus(OrderStatus.ATENDIDO);
+        CreateOrderRequest request = new CreateOrderRequest(
+                customer.getId(), List.of(new OrderItemRequest(luva.getId(), 1)), null, null, null);
+
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class, () -> orderService.update(order.getId(), request, authentication));
+        verify(orderRepository, never()).saveAndFlush(any(Order.class));
     }
 }
