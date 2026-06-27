@@ -101,6 +101,25 @@ class CustomerControllerIntegrationTest {
     }
 
     @Test
+    void findById_returnsSummaryFields() throws Exception {
+        String token = adminToken();
+
+        String customerJson = mockMvc.perform(post("/api/customers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token)
+                        .content("{\"nome\":\"Hospital Resumo\",\"email\":\"resumo@hospital.com\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String customerId = customerJson.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(get("/api/customers/" + customerId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalPedidos").value(0))
+                .andExpect(jsonPath("$.valorTotalGasto").value(0));
+    }
+
+    @Test
     void fullLifecycle_createListGetUpdate() throws Exception {
         String token = adminToken();
 
