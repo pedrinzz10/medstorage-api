@@ -239,6 +239,72 @@ class ReturnControllerIntegrationTest {
     }
 
     @Test
+    void reject_withPendingReturn_returns200WithRejectedStatus() throws Exception {
+        String productId = firstActiveProductId();
+        String customerId = createCustomerId();
+        String orderId = createRetiradoOrderId(customerId, productId, 2);
+
+        String createResponse = mockMvc.perform(post("/api/returns")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken())
+                        .content("{\"orderId\":\"" + orderId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String returnId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch("/api/returns/" + returnId + "/reject")
+                        .header("Authorization", "Bearer " + gerenteToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJEITADO"))
+                .andExpect(jsonPath("$.dataProcessamento").exists());
+    }
+
+    @Test
+    void reject_withAlreadyProcessedReturn_returns400() throws Exception {
+        String productId = firstActiveProductId();
+        String customerId = createCustomerId();
+        String orderId = createRetiradoOrderId(customerId, productId, 2);
+
+        String createResponse = mockMvc.perform(post("/api/returns")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken())
+                        .content("{\"orderId\":\"" + orderId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String returnId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch("/api/returns/" + returnId + "/process")
+                        .header("Authorization", "Bearer " + gerenteToken()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/returns/" + returnId + "/reject")
+                        .header("Authorization", "Bearer " + gerenteToken()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void reject_withVendedorRole_returns403() throws Exception {
+        String productId = firstActiveProductId();
+        String customerId = createCustomerId();
+        String orderId = createRetiradoOrderId(customerId, productId, 1);
+
+        String createResponse = mockMvc.perform(post("/api/returns")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken())
+                        .content("{\"orderId\":\"" + orderId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String returnId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch("/api/returns/" + returnId + "/reject")
+                        .header("Authorization", "Bearer " + vendedorToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void findAll_authenticated_returns200() throws Exception {
         mockMvc.perform(get("/api/returns")
                         .header("Authorization", "Bearer " + vendedorToken()))
