@@ -1,6 +1,9 @@
 package com.saas.MedStorage_api.customer.controller;
 
+<<<<<<< HEAD
 import com.saas.MedStorage_api.customer.dto.CustomerDetailResponse;
+=======
+>>>>>>> origin/main
 import com.saas.MedStorage_api.customer.dto.CustomerRequest;
 import com.saas.MedStorage_api.customer.dto.CustomerResponse;
 import com.saas.MedStorage_api.customer.service.CustomerService;
@@ -53,13 +56,21 @@ public class CustomerController {
         return ResponseEntity.ok(customerService.findAll(pageable));
     }
 
+<<<<<<< HEAD
     @Operation(summary = "Buscar cliente por ID", description = "Retorna dados cadastrais + resumo de pedidos (total, gasto e última compra) da view vw_customer_summary")
+=======
+    @Operation(summary = "Buscar cliente por ID")
+>>>>>>> origin/main
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Cliente encontrado"),
         @ApiResponse(responseCode = "404", description = "Cliente não encontrado")
     })
     @GetMapping("/{id}")
+<<<<<<< HEAD
     public ResponseEntity<CustomerDetailResponse> findById(@PathVariable UUID id) {
+=======
+    public ResponseEntity<CustomerResponse> findById(@PathVariable UUID id) {
+>>>>>>> origin/main
         return ResponseEntity.ok(customerService.findById(id));
     }
 

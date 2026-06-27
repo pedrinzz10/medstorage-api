@@ -34,6 +34,7 @@ PUT    /api/customers/{id}           → editar                      → 200    
 GET    /api/customers/{id}/orders    → histórico de pedidos        → 200       ✅ implementado
 ```
 
+<<<<<<< HEAD
 > `GET /api/customers/{id}` retorna também campos de resumo da view `vw_customer_summary`: `totalPedidos`, `valorTotalGasto`, `ultimaCompra`.
 
 ```
@@ -50,6 +51,17 @@ GET    /api/inventory/movements?productId → movimentos filtrados por produto  
 ```
 
 Movimentos são criados automaticamente ao marcar pedido ATENDIDO (tipo OUT) ou ao processar devolução (tipo IN). Sem endpoint público de criação de movimentos.
+=======
+## Produtos / Estoque
+```
+GET    /api/products                  → listar ativos paginado                    → 200       ✅ implementado
+GET    /api/products/{id}             → detalhe                                   → 200 / 404 ✅ implementado
+GET    /api/inventory/status          → status OK/BAIXO/CRÍTICO de todos produtos → 200       ✅ implementado
+GET    /api/inventory/{productId}     → status de um produto                      → 200 / 404 ✅ implementado
+```
+
+> Movimentos de estoque são criados internamente pelo `OrderService` ao marcar ATENDIDO (e futuramente por devoluções). Não há endpoint público de criação de movimentos no MVP.
+>>>>>>> origin/main
 
 ## Devoluções
 ```
@@ -57,10 +69,16 @@ POST   /api/returns                   → registrar devolução (pedido deve est
 GET    /api/returns                   → listar paginado                                 → 200       ✅ implementado
 GET    /api/returns/{id}              → detalhe                                         → 200 / 404 ✅ implementado
 PATCH  /api/returns/{id}/process      → processar (incrementa estoque, tipo IN)         → 200       ✅ implementado
+<<<<<<< HEAD
 PATCH  /api/returns/{id}/reject       → rejeitar (sem alterar estoque)                  → 200       ✅ implementado
 ```
 
 Fluxo de status: `PENDENTE → PROCESSADO` ou `PENDENTE → REJEITADO`. Devolução só é permitida em pedido `RETIRADO`.
+=======
+```
+
+Fluxo de status: `PENDENTE → PROCESSADO`. Devolução só é permitida em pedido `RETIRADO`.
+>>>>>>> origin/main
 Número gerado automaticamente: `DEV-NNNNNN` (sequence no banco, gerado em Java como o `PED-NNNNNN` dos pedidos).
 
 ## Performance / Comissões
