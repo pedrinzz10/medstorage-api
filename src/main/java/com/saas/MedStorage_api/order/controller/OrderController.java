@@ -19,13 +19,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
@@ -80,6 +83,34 @@ public class OrderController {
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(orderService.findAll(
                 status, customerId, criadoPor, dataInicio, dataFim, valorMin, valorMax, pageable));
+    }
+
+    @Operation(summary = "Editar pedido", description = "Permite alterar itens, cliente, desconto e notas. Somente pedidos PENDENTE podem ser editados. Requer VENDEDOR ou ADMIN")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Pedido atualizado"),
+        @ApiResponse(responseCode = "400", description = "Pedido não está em PENDENTE ou dados inválidos"),
+        @ApiResponse(responseCode = "404", description = "Pedido não encontrado")
+    })
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('VENDEDOR', 'ADMIN')")
+    public ResponseEntity<OrderResponse> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody CreateOrderRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(orderService.update(id, request, authentication));
+    }
+
+    @Operation(summary = "Excluir pedido", description = "Remove um pedido. Somente pedidos PENDENTE podem ser excluídos. Requer VENDEDOR ou ADMIN")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Pedido excluído"),
+        @ApiResponse(responseCode = "400", description = "Pedido não está em PENDENTE"),
+        @ApiResponse(responseCode = "404", description = "Pedido não encontrado")
+    })
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('VENDEDOR', 'ADMIN')")
+    public void delete(@PathVariable UUID id) {
+        orderService.delete(id);
     }
 
     @Operation(summary = "Mudar status do pedido", description = "Transições permitidas: PENDENTE → ATENDIDO (baixa estoque, envia e-mail), ATENDIDO → RETIRADO. Requer GERENTE_ESTOQUE ou ADMIN")

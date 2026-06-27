@@ -5,6 +5,8 @@ import com.saas.MedStorage_api.customer.dto.CustomerResponse;
 import com.saas.MedStorage_api.customer.entity.Customer;
 import com.saas.MedStorage_api.customer.repository.CustomerRepository;
 import com.saas.MedStorage_api.exception.ResourceNotFoundException;
+import com.saas.MedStorage_api.order.dto.OrderResponse;
+import com.saas.MedStorage_api.order.repository.OrderRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -15,9 +17,11 @@ import java.util.UUID;
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final OrderRepository orderRepository;
 
-    public CustomerService(CustomerRepository customerRepository) {
+    public CustomerService(CustomerRepository customerRepository, OrderRepository orderRepository) {
         this.customerRepository = customerRepository;
+        this.orderRepository = orderRepository;
     }
 
     public CustomerResponse create(CustomerRequest request) {
@@ -54,6 +58,11 @@ public class CustomerService {
         customer.setDadosAdicionais(request.dadosAdicionais());
 
         return CustomerResponse.from(customerRepository.save(customer));
+    }
+
+    public Page<OrderResponse> getOrders(UUID customerId, Pageable pageable) {
+        getOrThrow(customerId);
+        return orderRepository.findByCustomer_Id(customerId, pageable).map(OrderResponse::from);
     }
 
     private Customer getOrThrow(UUID id) {

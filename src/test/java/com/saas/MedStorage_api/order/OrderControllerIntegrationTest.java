@@ -8,9 +8,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -239,6 +241,121 @@ class OrderControllerIntegrationTest {
 
         mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", "Bearer " + vendedorToken))
                 .andExpect(jsonPath("$.status").value("PENDENTE"));
+    }
+
+    @Test
+    void delete_withPendingOrder_returns204() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(delete("/api/orders/" + orderId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/orders/" + orderId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void delete_withAttendedOrder_returns400() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"newStatus\":\"ATENDIDO\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/orders/" + orderId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void delete_withGerenteRole_returns403() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken())
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(delete("/api/orders/" + orderId)
+                        .header("Authorization", "Bearer " + gerenteToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void update_withPendingOrder_returns200WithNewValues() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":2}]}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(put("/api/orders/" + orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":5}]"
+                                + ",\"notas\":\"atualizado\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.notas").value("atualizado"))
+                .andExpect(jsonPath("$.items[0].quantidade").value(5));
+    }
+
+    @Test
+    void update_withGerenteRole_returns403() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken())
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(put("/api/orders/" + orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
