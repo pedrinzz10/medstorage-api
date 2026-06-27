@@ -151,6 +151,24 @@ public class ReturnService {
         return ReturnResponse.from(saved);
     }
 
+    @Transactional
+    public ReturnResponse reject(UUID id, Authentication authentication) {
+        Return ret = getOrThrow(id);
+
+        if (ret.getStatus() != ReturnStatus.PENDENTE) {
+            throw new BadRequestException(
+                    "Return cannot be rejected: current status is " + ret.getStatus());
+        }
+
+        ret.setStatus(ReturnStatus.REJEITADO);
+        ret.setDataProcessamento(LocalDateTime.now());
+        ret.setProcessadoPor(currentUser(authentication));
+
+        Return saved = returnRepository.save(ret);
+        log.info("Devolução {} rejeitada por user={}", saved.getNumeroRetorno(), authentication.getName());
+        return ReturnResponse.from(saved);
+    }
+
     private String generateNumeroRetorno() {
         long sequence = returnRepository.nextNumeroRetornoSequence();
         return "DEV-" + String.format("%06d", sequence);
