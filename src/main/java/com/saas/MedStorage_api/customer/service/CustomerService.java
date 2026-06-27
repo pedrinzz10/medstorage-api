@@ -1,9 +1,12 @@
 package com.saas.MedStorage_api.customer.service;
 
+import com.saas.MedStorage_api.customer.dto.CustomerDetailResponse;
 import com.saas.MedStorage_api.customer.dto.CustomerRequest;
 import com.saas.MedStorage_api.customer.dto.CustomerResponse;
 import com.saas.MedStorage_api.customer.entity.Customer;
+import com.saas.MedStorage_api.customer.entity.CustomerSummaryView;
 import com.saas.MedStorage_api.customer.repository.CustomerRepository;
+import com.saas.MedStorage_api.customer.repository.CustomerSummaryRepository;
 import com.saas.MedStorage_api.exception.ResourceNotFoundException;
 import com.saas.MedStorage_api.order.dto.OrderResponse;
 import com.saas.MedStorage_api.order.repository.OrderRepository;
@@ -17,10 +20,15 @@ import java.util.UUID;
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final CustomerSummaryRepository customerSummaryRepository;
     private final OrderRepository orderRepository;
 
-    public CustomerService(CustomerRepository customerRepository, OrderRepository orderRepository) {
+    public CustomerService(
+            CustomerRepository customerRepository,
+            CustomerSummaryRepository customerSummaryRepository,
+            OrderRepository orderRepository) {
         this.customerRepository = customerRepository;
+        this.customerSummaryRepository = customerSummaryRepository;
         this.orderRepository = orderRepository;
     }
 
@@ -42,8 +50,10 @@ public class CustomerService {
         return customerRepository.findAll(pageable).map(CustomerResponse::from);
     }
 
-    public CustomerResponse findById(UUID id) {
-        return CustomerResponse.from(getOrThrow(id));
+    public CustomerDetailResponse findById(UUID id) {
+        Customer customer = getOrThrow(id);
+        CustomerSummaryView summary = customerSummaryRepository.findById(id).orElse(null);
+        return CustomerDetailResponse.from(customer, summary);
     }
 
     public CustomerResponse update(UUID id, CustomerRequest request) {

@@ -1,11 +1,14 @@
 package com.saas.MedStorage_api.customer;
 
+import com.saas.MedStorage_api.customer.dto.CustomerDetailResponse;
 import com.saas.MedStorage_api.customer.dto.CustomerRequest;
 import com.saas.MedStorage_api.customer.dto.CustomerResponse;
 import com.saas.MedStorage_api.customer.entity.Customer;
 import com.saas.MedStorage_api.customer.repository.CustomerRepository;
+import com.saas.MedStorage_api.customer.repository.CustomerSummaryRepository;
 import com.saas.MedStorage_api.customer.service.CustomerService;
 import com.saas.MedStorage_api.exception.ResourceNotFoundException;
+import com.saas.MedStorage_api.order.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +35,12 @@ class CustomerServiceTest {
 
     @Mock
     private CustomerRepository customerRepository;
+
+    @Mock
+    private CustomerSummaryRepository customerSummaryRepository;
+
+    @Mock
+    private OrderRepository orderRepository;
 
     @InjectMocks
     private CustomerService customerService;
@@ -79,12 +88,14 @@ class CustomerServiceTest {
     }
 
     @Test
-    void findById_withExistingId_returnsCustomer() {
+    void findById_withExistingId_returnsDetailWithSummary() {
         when(customerRepository.findById(hospital.getId())).thenReturn(Optional.of(hospital));
+        when(customerSummaryRepository.findById(hospital.getId())).thenReturn(Optional.empty());
 
-        CustomerResponse response = customerService.findById(hospital.getId());
+        CustomerDetailResponse response = customerService.findById(hospital.getId());
 
         assertEquals("Hospital Central", response.nome());
+        assertEquals(0L, response.totalPedidos());
     }
 
     @Test

@@ -79,4 +79,17 @@ public class ReturnController {
             @PathVariable UUID id, Authentication authentication) {
         return ResponseEntity.ok(returnService.process(id, authentication));
     }
+
+    @Operation(summary = "Rejeitar devolução", description = "Rejeita uma devolução PENDENTE sem alterar estoque. Requer papel GERENTE_ESTOQUE ou ADMIN")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Devolução rejeitada"),
+        @ApiResponse(responseCode = "400", description = "Devolução não está PENDENTE"),
+        @ApiResponse(responseCode = "404", description = "Devolução não encontrada")
+    })
+    @PatchMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('GERENTE_ESTOQUE', 'ADMIN')")
+    public ResponseEntity<ReturnResponse> reject(
+            @PathVariable UUID id, Authentication authentication) {
+        return ResponseEntity.ok(returnService.reject(id, authentication));
+    }
 }
