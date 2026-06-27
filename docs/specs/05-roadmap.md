@@ -18,6 +18,7 @@ Baseado em `docs/inicial_docs/BACKEND_GUIA_COMPLETO.md`. Critério de saída de 
 | 7 — Performance + Comissões | ✅ Concluída | #24 | — |
 | 8 — Hardening e fechamento | ✅ Concluída | #26 | — |
 | 9 — Edição/exclusão de pedidos + histórico de cliente | ✅ Concluída | #29 | — |
+| 10 — Customer summary, inventory movements e rejeição de devoluções | ✅ Concluída | #31 | — |
 
 ## Sprint 1 — Setup + Autenticação
 - `docker-compose.yml` com PostgreSQL local para desenvolvimento (`Dockerfile` e serviço `app` adicionados posteriormente — PR #12)
