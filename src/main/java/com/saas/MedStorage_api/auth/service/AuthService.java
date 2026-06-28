@@ -11,9 +11,12 @@ import com.saas.MedStorage_api.security.JwtProvider;
 import com.saas.MedStorage_api.user.entity.User;
 import com.saas.MedStorage_api.user.enums.UserRole;
 import com.saas.MedStorage_api.user.repository.UserRepository;
+import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -33,8 +36,8 @@ public class AuthService {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            log.warn("Senha incorreta para user={}", request.email());
+        if (!user.isAtivo() || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            log.warn("Credencial invalida ou conta desativada para user={}", request.email());
             throw new UnauthorizedException("Invalid credentials");
         }
 
@@ -67,5 +70,18 @@ public class AuthService {
         UserSummaryResponse response = UserSummaryResponse.from(userRepository.save(user));
         log.info("Usuário registrado: email={} role={}", request.email(), request.role());
         return response;
+    }
+
+    public LoginResponse refresh(String token) {
+        Claims claims = jwtProvider.parseClaims(token);
+        UUID userId = UUID.fromString(claims.get("userId", String.class));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+        if (!user.isAtivo()) {
+            throw new UnauthorizedException("Invalid credentials");
+        }
+        String newToken = jwtProvider.generateToken(user.getId(), user.getEmail(), user.getRole());
+        log.info("Token renovado: user={} role={}", user.getEmail(), user.getRole());
+        return new LoginResponse(newToken, null);
     }
 }
