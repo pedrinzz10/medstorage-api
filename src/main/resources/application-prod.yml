@@ -3,3 +3,6 @@ springdoc:
     enabled: false
   api-docs:
     enabled: false
+logging:
+  level:
+    org.springdoc: WARN
