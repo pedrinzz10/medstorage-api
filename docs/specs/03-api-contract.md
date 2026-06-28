@@ -36,9 +36,6 @@ GET    /api/customers/{id}/orders    → histórico de pedidos        → 200   
 
 > `GET /api/customers/{id}` retorna também campos de resumo da view `vw_customer_summary`: `totalPedidos`, `valorTotalGasto`, `ultimaCompra`.
 
-```
-```
-
 ## Produtos / Estoque
 ```
 GET    /api/products                      → listar ativos paginado                     → 200       ✅ implementado
