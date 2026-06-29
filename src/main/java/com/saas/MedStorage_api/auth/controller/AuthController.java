@@ -9,7 +9,6 @@ import com.saas.MedStorage_api.auth.service.AuthService;
 import com.saas.MedStorage_api.auth.service.LoginRateLimiter;
 import com.saas.MedStorage_api.exception.TooManyRequestsException;
 import com.saas.MedStorage_api.security.JwtProvider;
-import com.saas.MedStorage_api.user.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -25,8 +24,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
 
 @Tag(name = "Autenticação", description = "Login, registro de usuários e gerenciamento de tokens JWT")
 @RestController
@@ -100,16 +97,14 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
-    @Operation(summary = "Renovar token", description = "Reemite um novo token JWT a partir de um token ainda válido")
-    @ApiResponse(responseCode = "200", description = "Novo token emitido")
+    @Operation(summary = "Renovar token", description = "Reemite um novo token JWT consultando o banco — reflete papel e status atuais do usuário")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Novo token emitido"),
+        @ApiResponse(responseCode = "401", description = "Token inválido ou conta desativada")
+    })
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refresh(@RequestHeader("Authorization") String authorizationHeader) {
         String token = authorizationHeader.replace(BEARER_PREFIX, "");
-        Claims claims = jwtProvider.parseClaims(token);
-        String newToken = jwtProvider.generateToken(
-                UUID.fromString(claims.get("userId", String.class)),
-                claims.getSubject(),
-                UserRole.fromValue(claims.get("role", String.class)));
-        return ResponseEntity.ok(new LoginResponse(newToken, null));
+        return ResponseEntity.ok(authService.refresh(token));
     }
 }
