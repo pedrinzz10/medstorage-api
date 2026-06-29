@@ -125,7 +125,7 @@ public class OrderController {
             @PathVariable UUID id, @Valid @RequestBody ChangeOrderStatusRequest request, Authentication authentication) {
         return switch (request.newStatus().toUpperCase()) {
             case "ATENDIDO" -> ResponseEntity.ok(orderService.markAsAttended(id, authentication));
-            case "RETIRADO" -> ResponseEntity.ok(orderService.markAsWithdrawn(id));
+            case "RETIRADO" -> ResponseEntity.ok(orderService.markAsWithdrawn(id, authentication));
             default -> throw new BadRequestException(
                     "Status transition to '" + request.newStatus() + "' is not supported");
         };

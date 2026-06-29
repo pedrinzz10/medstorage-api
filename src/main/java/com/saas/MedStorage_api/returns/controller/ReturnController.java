@@ -36,14 +36,14 @@ public class ReturnController {
         this.returnService = returnService;
     }
 
-    @Operation(summary = "Registrar devolução", description = "Cria uma devolução em status PENDENTE para um pedido RETIRADO. Requer papel VENDEDOR ou ADMIN")
+    @Operation(summary = "Registrar devolução", description = "Cria uma devolução em status PENDENTE para um pedido RETIRADO. Requer papel GERENTE_ESTOQUE ou ADMIN")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Devolução registrada"),
         @ApiResponse(responseCode = "400", description = "Pedido não está RETIRADO, produto não pertence ao pedido ou quantidade excede o pedido"),
         @ApiResponse(responseCode = "404", description = "Pedido ou produto não encontrado")
     })
     @PostMapping
-    @PreAuthorize("hasAnyRole('VENDEDOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('GERENTE_ESTOQUE', 'ADMIN')")
     public ResponseEntity<ReturnResponse> create(
             @Valid @RequestBody CreateReturnRequest request, Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED).body(returnService.create(request, authentication));

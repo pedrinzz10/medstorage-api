@@ -135,7 +135,7 @@ public class ReturnService {
                     .product(item.getProduct())
                     .tipo(MovementType.IN)
                     .quantidade(item.getQuantidade())
-                    .motivo("Devolução " + ret.getNumeroRetorno())
+                    .motivo("Devolução Pedido " + ret.getOrder().getNumeroPedido())
                     .referenciaId(ret.getId())
                     .referenciaTipo("return")
                     .criadoPor(actingUser)
