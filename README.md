@@ -21,6 +21,7 @@ API REST para gestão de estoque e pedidos de uma distribuidora de materiais mé
 - [Endpoints](#endpoints)
 - [Fluxo de um pedido](#fluxo-de-um-pedido)
 - [Controle de acesso](#controle-de-acesso)
+  - [Hardening de segurança](#hardening-de-segurança)
 - [Banco de dados](#banco-de-dados)
 - [Testes e cobertura](#testes-e-cobertura)
 - [Decisões técnicas](#decisões-técnicas)
@@ -160,6 +161,10 @@ DB_PORT=5432
 JWT_SECRET=substitua-por-uma-chave-secreta-longa-e-aleatoria
 JWT_EXPIRATION_MS=86400000   # 24 horas (padrão)
 
+# CORS — origens permitidas (separadas por vírgula)
+# Padrão em dev: http://localhost:3000,http://localhost:8080
+CORS_ALLOWED_ORIGINS=https://app.distribuidor.com,https://admin.distribuidor.com
+
 # E-mail (opcional — notificações ao atender pedido)
 MAIL_USERNAME=seu-email@gmail.com
 MAIL_PASSWORD=sua-senha-de-app-gmail
@@ -167,6 +172,8 @@ MAIL_FROM_NAME=MedStorage
 ```
 
 > **Nota:** `JWT_SECRET` é obrigatório. Sem ele a aplicação não inicializa. As variáveis de e-mail são opcionais; se não configuradas, a notificação de pedido atendido é registrada em log mas não falha a operação.
+
+> **Produção:** defina `SPRING_PROFILES_ACTIVE=prod` para desabilitar o Swagger UI e o endpoint `/v3/api-docs` automaticamente.
 
 ---
 
@@ -380,6 +387,15 @@ Autenticação via **JWT stateless** com papel (`role`) embutido no token.
 
 **Rate limiting no login:** 5 tentativas por minuto por IP. Exceder retorna `429 Too Many Requests`.
 
+### Hardening de segurança
+
+| Proteção | Comportamento |
+|---|---|
+| Conta desativada | Login e qualquer requisição com token válido de usuário `ativo=false` são bloqueados imediatamente — o filtro JWT consulta o banco a cada requisição |
+| Renovação de token | `POST /api/auth/refresh` busca o usuário no banco e reflete o papel e status atuais, evitando tokens com dados obsoletos |
+| CORS | Somente as origens listadas em `CORS_ALLOWED_ORIGINS` são aceitas (sem wildcard) |
+| Swagger em produção | Desabilitado automaticamente com `SPRING_PROFILES_ACTIVE=prod` |
+
 ### Autenticando no Swagger UI
 
 1. Acesse `http://localhost:8080/swagger-ui.html`
@@ -458,5 +474,9 @@ O CI (GitHub Actions) roda `build + test + jacocoTestCoverageVerification` em to
 **Criticidade calculada em Java, não na view:** a view `vw_inventory_status` existe para consultas manuais, mas o endpoint `/api/inventory/status` recalcula a criticidade no `InventoryService`. Isso permite testar a lógica de classificação (`CRITICO` / `BAIXO` / `OK`) com testes unitários puros, sem depender de banco.
 
 **Rate limiting em memória:** o controle de tentativas de login usa `ConcurrentHashMap` com janela deslizante de 1 minuto. Suficiente para instância única. Para múltiplas instâncias, seria necessário externalizar para Redis.
+
+**Verificação de estado do usuário por requisição:** o filtro JWT consulta o banco a cada request autenticado para verificar se `ativo=true`. Isso garante que desativar um usuário via `PATCH /api/users/{id}` surta efeito imediato — sem precisar aguardar a expiração do token. O custo por requisição é uma leitura por chave primária (índice `users.id`), o que é negligenciável.
+
+**CORS restrito via variável de ambiente:** em vez de `allowedOriginPatterns("*")`, as origens aceitas são lidas de `CORS_ALLOWED_ORIGINS`. O default em desenvolvimento inclui `localhost:3000` e `localhost:8080`; em produção a variável deve listar explicitamente cada domínio do frontend.
 
 **Package-by-feature com sub-pacotes:** cada módulo de negócio é autocontido. `auth` não depende de `order`, `inventory` não conhece `customer`. Facilita extrair módulos em microsserviços no futuro sem grandes refatorações.
