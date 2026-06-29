@@ -76,6 +76,10 @@ public class Order {
     @Column(name = "data_retirada")
     private LocalDateTime dataRetirada;
 
+    @ManyToOne
+    @JoinColumn(name = "retirado_por")
+    private User retiradoPor;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();

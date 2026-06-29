@@ -1,5 +1,7 @@
 package com.saas.MedStorage_api.order.service;
 
+import com.saas.MedStorage_api.commission.entity.Commission;
+import com.saas.MedStorage_api.commission.repository.CommissionRepository;
 import com.saas.MedStorage_api.customer.entity.Customer;
 import com.saas.MedStorage_api.customer.repository.CustomerRepository;
 import com.saas.MedStorage_api.exception.BadRequestException;
@@ -33,6 +35,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -48,6 +51,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final InventoryRepository inventoryRepository;
     private final InventoryMovementRepository movementRepository;
+    private final CommissionRepository commissionRepository;
     private final OrderNotificationService notificationService;
 
     public OrderService(
@@ -57,6 +61,7 @@ public class OrderService {
             UserRepository userRepository,
             InventoryRepository inventoryRepository,
             InventoryMovementRepository movementRepository,
+            CommissionRepository commissionRepository,
             OrderNotificationService notificationService) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
@@ -64,6 +69,7 @@ public class OrderService {
         this.userRepository = userRepository;
         this.inventoryRepository = inventoryRepository;
         this.movementRepository = movementRepository;
+        this.commissionRepository = commissionRepository;
         this.notificationService = notificationService;
     }
 
@@ -224,19 +230,47 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse markAsWithdrawn(UUID orderId) {
+    public OrderResponse markAsWithdrawn(UUID orderId, Authentication authentication) {
         Order order = getOrThrow(orderId);
 
         if (order.getStatus() != OrderStatus.ATENDIDO) {
             throw new BadRequestException("Order cannot transition from " + order.getStatus() + " to RETIRADO");
         }
 
+        User actingUser = currentUser(authentication);
         order.setStatus(OrderStatus.RETIRADO);
         order.setDataRetirada(LocalDateTime.now());
+        order.setRetiradoPor(actingUser);
 
         Order saved = orderRepository.save(order);
-        log.info("Pedido {} marcado como RETIRADO", saved.getNumeroPedido());
+        log.info("Pedido {} marcado como RETIRADO por user={}", saved.getNumeroPedido(), authentication.getName());
+
+        acumulaComissao(saved);
+
         return OrderResponse.from(saved);
+    }
+
+    private void acumulaComissao(Order order) {
+        User vendedor = order.getCriadoPor();
+        LocalDate inicio = LocalDate.now().withDayOfMonth(1);
+        LocalDate fim = inicio.withDayOfMonth(inicio.lengthOfMonth());
+        int totalUnidades = order.getItems().stream().mapToInt(OrderItem::getQuantidade).sum();
+
+        Commission commission = commissionRepository
+                .findByVendedorAndPeriodoInicioAndPeriodoFim(vendedor, inicio, fim)
+                .orElseGet(() -> Commission.builder()
+                        .vendedor(vendedor)
+                        .periodoInicio(inicio)
+                        .periodoFim(fim)
+                        .build());
+
+        commission.setTotalPedidos(commission.getTotalPedidos() + 1);
+        commission.setValorVendido(commission.getValorVendido().add(order.getValorTotal()));
+        commission.setQuantidadeUnidades(commission.getQuantidadeUnidades() + totalUnidades);
+
+        commissionRepository.save(commission);
+        log.debug("Comissao acumulada: vendedor={} periodo={}/{} valorVendido={}",
+                vendedor.getEmail(), inicio, fim, commission.getValorVendido());
     }
 
     private void validateDiscount(BigDecimal desconto, BigDecimal valorBruto) {

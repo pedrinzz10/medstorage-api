@@ -105,7 +105,7 @@ class ReturnControllerIntegrationTest {
 
         mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken())
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + orderId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":2}]"
                                 + ",\"motivo\":\"Produto com defeito\"}"))
@@ -131,7 +131,7 @@ class ReturnControllerIntegrationTest {
 
         mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken)
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + orderId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
                 .andExpect(status().isBadRequest());
@@ -141,7 +141,7 @@ class ReturnControllerIntegrationTest {
     void create_withNonExistentOrder_returns404() throws Exception {
         mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken())
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + UUID.randomUUID()
                                 + "\",\"items\":[{\"productId\":\"" + UUID.randomUUID() + "\",\"quantidade\":1}]}"))
                 .andExpect(status().isNotFound());
@@ -155,7 +155,7 @@ class ReturnControllerIntegrationTest {
 
         mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken())
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + orderId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":5}]}"))
                 .andExpect(status().isBadRequest());
@@ -174,7 +174,7 @@ class ReturnControllerIntegrationTest {
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken())
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + orderId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":3}]}"))
                 .andExpect(status().isCreated())
@@ -203,7 +203,7 @@ class ReturnControllerIntegrationTest {
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken())
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + orderId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
                 .andExpect(status().isCreated())
@@ -223,7 +223,7 @@ class ReturnControllerIntegrationTest {
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken())
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + orderId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
                 .andReturn().getResponse().getContentAsString();
@@ -246,7 +246,7 @@ class ReturnControllerIntegrationTest {
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken())
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + orderId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
                 .andExpect(status().isCreated())
@@ -268,7 +268,7 @@ class ReturnControllerIntegrationTest {
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken())
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + orderId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
                 .andExpect(status().isCreated())
@@ -292,7 +292,7 @@ class ReturnControllerIntegrationTest {
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + vendedorToken())
+                        .header("Authorization", "Bearer " + gerenteToken())
                         .content("{\"orderId\":\"" + orderId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
                 .andExpect(status().isCreated())
