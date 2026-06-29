@@ -82,6 +82,6 @@ public class AuthService {
         }
         String newToken = jwtProvider.generateToken(user.getId(), user.getEmail(), user.getRole());
         log.info("Token renovado: user={} role={}", user.getEmail(), user.getRole());
-        return new LoginResponse(newToken, null);
+        return new LoginResponse(newToken, UserSummaryResponse.from(user));
     }
 }
