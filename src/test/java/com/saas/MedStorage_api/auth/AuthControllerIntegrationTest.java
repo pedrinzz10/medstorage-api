@@ -44,24 +44,30 @@ class AuthControllerIntegrationTest {
     }
 
     private String tokenFromLogin(String email, char[] secret) throws Exception {
-        String response = mockMvc.perform(post("/api/auth/login")
+        String setCookie = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginPayload(email, secret)))
-                .andReturn().getResponse().getContentAsString();
-
-        return response.split("\"token\":\"")[1].split("\"")[0];
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getHeader("Set-Cookie");
+        // Set-Cookie: jwt=eyJ...; Path=/; Max-Age=...; HttpOnly; SameSite=Strict
+        return setCookie.split("jwt=")[1].split(";")[0];
     }
 
     @Test
-    void login_withValidCredentials_returns200WithToken() throws Exception {
-        mockMvc.perform(post("/api/auth/login")
+    void login_withValidCredentials_returns200WithUserAndCookie() throws Exception {
+        var result = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginPayload(ADMIN_EMAIL, ADMIN_SECRET)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isString())
-                .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.user.email").value(ADMIN_EMAIL))
-                .andExpect(jsonPath("$.user.role").value("admin"));
+                .andExpect(jsonPath("$.email").value(ADMIN_EMAIL))
+                .andExpect(jsonPath("$.role").value("admin"))
+                .andReturn();
+
+        String setCookie = result.getResponse().getHeader("Set-Cookie");
+        org.junit.jupiter.api.Assertions.assertNotNull(setCookie);
+        org.junit.jupiter.api.Assertions.assertTrue(setCookie.contains("jwt="));
+        org.junit.jupiter.api.Assertions.assertTrue(setCookie.contains("HttpOnly"));
+        org.junit.jupiter.api.Assertions.assertTrue(setCookie.contains("SameSite=Strict"));
     }
 
     @Test

@@ -21,11 +21,11 @@ class CommissionControllerIntegrationTest {
     private MockMvc mockMvc;
 
     private String tokenFor(String email, char[] secret) throws Exception {
-        String response = mockMvc.perform(post("/api/auth/login")
+        String setCookie = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"" + new String(secret) + "\"}"))
-                .andReturn().getResponse().getContentAsString();
-        return response.split("\"token\":\"")[1].split("\"")[0];
+                .andReturn().getResponse().getHeader("Set-Cookie");
+        return setCookie.split("jwt=")[1].split(";")[0];
     }
 
     private String adminToken() throws Exception {
