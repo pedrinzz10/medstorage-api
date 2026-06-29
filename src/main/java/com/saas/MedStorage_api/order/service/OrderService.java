@@ -113,7 +113,9 @@ public class OrderService {
         // saveAndFlush forca a execucao do INSERT agora, para que o Hibernate
         // recarregue numero_pedido (gerado pelo trigger no banco, ver @Generated
         // no Order) antes de montar a resposta.
-        OrderResponse response = OrderResponse.from(orderRepository.saveAndFlush(order));
+        Order saved = orderRepository.saveAndFlush(order);
+        registerAfterCommit(() -> notificationService.sendOrderCreatedToStaff(saved));
+        OrderResponse response = OrderResponse.from(saved);
         log.info("Pedido {} criado: valor={}", response.numeroPedido(), response.valorTotal());
         return response;
     }
@@ -224,7 +226,8 @@ public class OrderService {
         Order saved = orderRepository.save(order);
 
         log.info("Pedido {} marcado como ATENDIDO por user={}", saved.getNumeroPedido(), authentication.getName());
-        registerNotificationAfterCommit(saved);
+        registerAfterCommit(() -> notificationService.sendOrderReadyEmail(saved));
+        registerAfterCommit(() -> notificationService.sendOrderAttendedToStaff(saved));
 
         return OrderResponse.from(saved);
     }
@@ -306,17 +309,15 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
     }
 
-    private void registerNotificationAfterCommit(Order order) {
+    private void registerAfterCommit(Runnable action) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            // Sem transacao Spring ativa (ex.: chamada direta em teste unitario) -
-            // nao ha commit para esperar, envia imediatamente.
-            notificationService.sendOrderReadyEmail(order);
+            action.run();
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                notificationService.sendOrderReadyEmail(order);
+                action.run();
             }
         });
     }
