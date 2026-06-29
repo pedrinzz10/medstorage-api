@@ -1,5 +1,6 @@
 package com.saas.MedStorage_api.security;
 
+import com.saas.MedStorage_api.user.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -13,15 +14,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtProvider jwtProvider;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtProvider jwtProvider) {
+    public JwtAuthenticationFilter(JwtProvider jwtProvider, UserRepository userRepository) {
         this.jwtProvider = jwtProvider;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -37,12 +41,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (jwtProvider.isValid(token)) {
                 Claims claims = jwtProvider.parseClaims(token);
-                String email = claims.getSubject();
-                String role = claims.get("role", String.class);
+                UUID userId = UUID.fromString(claims.get("userId", String.class));
 
-                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
-                var authentication = new UsernamePasswordAuthenticationToken(email, null, authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                boolean active = userRepository.findById(userId)
+                        .map(u -> u.isAtivo())
+                        .orElse(false);
+
+                if (active) {
+                    String email = claims.getSubject();
+                    String role = claims.get("role", String.class);
+                    var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                    var authentication = new UsernamePasswordAuthenticationToken(email, null, authorities);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         }
 
