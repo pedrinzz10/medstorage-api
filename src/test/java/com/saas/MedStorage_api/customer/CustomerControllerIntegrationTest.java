@@ -24,11 +24,11 @@ class CustomerControllerIntegrationTest {
     private MockMvc mockMvc;
 
     private String adminToken() throws Exception {
-        String response = mockMvc.perform(post("/api/auth/login")
+        String setCookie = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + ADMIN_EMAIL + "\",\"password\":\"" + new String(ADMIN_SECRET) + "\"}"))
-                .andReturn().getResponse().getContentAsString();
-        return response.split("\"token\":\"")[1].split("\"")[0];
+                .andReturn().getResponse().getHeader("Set-Cookie");
+        return setCookie.split("jwt=")[1].split(";")[0];
     }
 
     @Test
