@@ -1,5 +1,6 @@
 package com.saas.MedStorage_api.order;
 
+import com.saas.MedStorage_api.commission.repository.CommissionRepository;
 import com.saas.MedStorage_api.customer.entity.Customer;
 import com.saas.MedStorage_api.customer.repository.CustomerRepository;
 import com.saas.MedStorage_api.exception.BadRequestException;
@@ -62,6 +63,8 @@ class OrderServiceTest {
     private InventoryRepository inventoryRepository;
     @Mock
     private InventoryMovementRepository movementRepository;
+    @Mock
+    private CommissionRepository commissionRepository;
     @Mock
     private OrderNotificationService notificationService;
     @Mock
@@ -211,8 +214,11 @@ class OrderServiceTest {
         order.setDataAtendimento(java.time.LocalDateTime.now());
 
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        lenient().when(commissionRepository.findByVendedorAndPeriodoInicioAndPeriodoFim(any(), any(), any()))
+                .thenReturn(Optional.empty());
+        lenient().when(commissionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        OrderResponse response = orderService.markAsWithdrawn(order.getId());
+        OrderResponse response = orderService.markAsWithdrawn(order.getId(), authentication);
 
         assertEquals("RETIRADO", response.status());
         assertEquals(OrderStatus.RETIRADO, order.getStatus());
@@ -225,7 +231,7 @@ class OrderServiceTest {
 
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
 
-        assertThrows(BadRequestException.class, () -> orderService.markAsWithdrawn(order.getId()));
+        assertThrows(BadRequestException.class, () -> orderService.markAsWithdrawn(order.getId(), authentication));
         assertEquals(OrderStatus.PENDENTE, order.getStatus());
     }
 
