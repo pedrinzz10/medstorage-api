@@ -63,7 +63,7 @@ class ReturnServiceTest {
     private Customer customer;
     private User gerente;
     private Product luva;
-    private Order retiradoOrder;
+    private Order finalizadoOrder;
 
     @BeforeEach
     void setUp() {
@@ -71,16 +71,18 @@ class ReturnServiceTest {
         gerente = User.builder().id(UUID.randomUUID()).email("gerente@distribuidor.com").role(UserRole.GERENTE_ESTOQUE).build();
         luva = Product.builder().id(UUID.randomUUID()).nome("Luva").precoBase(new BigDecimal("10.00")).build();
 
-        retiradoOrder = Order.builder()
+        finalizadoOrder = Order.builder()
                 .id(UUID.randomUUID())
                 .numeroPedido("PED-001000")
                 .customer(customer)
-                .status(OrderStatus.RETIRADO)
+                .status(OrderStatus.FINALIZADO)
                 .valorTotal(new BigDecimal("50.00"))
-                .dataAtendimento(LocalDateTime.now().minusDays(1))
-                .dataRetirada(LocalDateTime.now())
+                .dataConfirmado(LocalDateTime.now().minusDays(2))
+                .dataSeparado(LocalDateTime.now().minusDays(2))
+                .dataPronte(LocalDateTime.now().minusDays(1))
+                .dataFinalizado(LocalDateTime.now())
                 .build();
-        retiradoOrder.addItem(OrderItem.builder()
+        finalizadoOrder.addItem(OrderItem.builder()
                 .id(UUID.randomUUID())
                 .product(luva)
                 .quantidade(5)
@@ -95,11 +97,11 @@ class ReturnServiceTest {
     }
 
     @Test
-    void create_withRetiradoOrder_returnsCreatedResponse() {
+    void create_withFinalizadoOrder_returnsCreatedResponse() {
         CreateReturnRequest request = new CreateReturnRequest(
-                retiradoOrder.getId(), List.of(new ReturnItemRequest(luva.getId(), 3)), "Produto com defeito");
+                finalizadoOrder.getId(), List.of(new ReturnItemRequest(luva.getId(), 3)), "Produto com defeito");
 
-        when(orderRepository.findById(retiradoOrder.getId())).thenReturn(Optional.of(retiradoOrder));
+        when(orderRepository.findById(finalizadoOrder.getId())).thenReturn(Optional.of(finalizadoOrder));
         when(productRepository.findById(luva.getId())).thenReturn(Optional.of(luva));
 
         ReturnResponse response = returnService.create(request, authentication);
@@ -111,12 +113,12 @@ class ReturnServiceTest {
     }
 
     @Test
-    void create_withNonRetiradoOrder_throwsBadRequestException() {
-        retiradoOrder.setStatus(OrderStatus.ATENDIDO);
+    void create_withNonFinalizadoOrder_throwsBadRequestException() {
+        finalizadoOrder.setStatus(OrderStatus.SEPARADO);
         CreateReturnRequest request = new CreateReturnRequest(
-                retiradoOrder.getId(), List.of(new ReturnItemRequest(luva.getId(), 1)), null);
+                finalizadoOrder.getId(), List.of(new ReturnItemRequest(luva.getId(), 1)), null);
 
-        when(orderRepository.findById(retiradoOrder.getId())).thenReturn(Optional.of(retiradoOrder));
+        when(orderRepository.findById(finalizadoOrder.getId())).thenReturn(Optional.of(finalizadoOrder));
 
         assertThrows(BadRequestException.class, () -> returnService.create(request, authentication));
         verify(returnRepository, never()).saveAndFlush(any());
@@ -136,9 +138,9 @@ class ReturnServiceTest {
     void create_withProductNotInOrder_throwsBadRequestException() {
         Product outro = Product.builder().id(UUID.randomUUID()).nome("Seringa").precoBase(new BigDecimal("5.00")).build();
         CreateReturnRequest request = new CreateReturnRequest(
-                retiradoOrder.getId(), List.of(new ReturnItemRequest(outro.getId(), 1)), null);
+                finalizadoOrder.getId(), List.of(new ReturnItemRequest(outro.getId(), 1)), null);
 
-        when(orderRepository.findById(retiradoOrder.getId())).thenReturn(Optional.of(retiradoOrder));
+        when(orderRepository.findById(finalizadoOrder.getId())).thenReturn(Optional.of(finalizadoOrder));
         when(productRepository.findById(outro.getId())).thenReturn(Optional.of(outro));
 
         assertThrows(BadRequestException.class, () -> returnService.create(request, authentication));
@@ -147,9 +149,9 @@ class ReturnServiceTest {
     @Test
     void create_withQuantityExceedingOrderedAmount_throwsBadRequestException() {
         CreateReturnRequest request = new CreateReturnRequest(
-                retiradoOrder.getId(), List.of(new ReturnItemRequest(luva.getId(), 10)), null);
+                finalizadoOrder.getId(), List.of(new ReturnItemRequest(luva.getId(), 10)), null);
 
-        when(orderRepository.findById(retiradoOrder.getId())).thenReturn(Optional.of(retiradoOrder));
+        when(orderRepository.findById(finalizadoOrder.getId())).thenReturn(Optional.of(finalizadoOrder));
         when(productRepository.findById(luva.getId())).thenReturn(Optional.of(luva));
 
         assertThrows(BadRequestException.class, () -> returnService.create(request, authentication));
@@ -194,7 +196,7 @@ class ReturnServiceTest {
         Return ret = Return.builder()
                 .id(UUID.randomUUID())
                 .numeroRetorno("DEV-001000")
-                .order(retiradoOrder)
+                .order(finalizadoOrder)
                 .status(ReturnStatus.PENDENTE)
                 .dataSolicitacao(LocalDateTime.now())
                 .build();

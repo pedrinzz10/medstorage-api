@@ -7,6 +7,8 @@ public record InventoryStatusResponse(
         String nome,
         String sku,
         int quantidadeAtual,
+        int disponivel,
+        int reservada,
         Integer estoqueMinimo,
         String statusEstoque
 ) {

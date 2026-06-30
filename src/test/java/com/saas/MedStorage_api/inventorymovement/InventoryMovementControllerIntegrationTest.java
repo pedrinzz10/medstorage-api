@@ -67,10 +67,29 @@ class InventoryMovementControllerIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         String orderId = orderJson.split("\"id\":\"")[1].split("\"")[0];
 
+        String gerenteToken = gerenteToken();
         mockMvc.perform(patch("/api/orders/" + orderId + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + gerenteToken())
-                        .content("{\"newStatus\":\"ATENDIDO\"}"))
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"CONFIRMADO\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"SEPARADO\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"PRONTO\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"FINALIZADO\"}"))
                 .andExpect(status().isOk());
     }
 

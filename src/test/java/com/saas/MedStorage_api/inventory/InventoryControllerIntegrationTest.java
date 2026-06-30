@@ -63,6 +63,22 @@ class InventoryControllerIntegrationTest {
         mockMvc.perform(get("/api/inventory/" + productId)
                         .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(productId));
+                .andExpect(jsonPath("$.id").value(productId))
+                .andExpect(jsonPath("$.quantidadeAtual").exists())
+                .andExpect(jsonPath("$.disponivel").exists())
+                .andExpect(jsonPath("$.reservada").exists())
+                .andExpect(jsonPath("$.statusEstoque").exists());
+    }
+
+    @Test
+    void getStatus_withToken_returnsDisponivelAndReservadaFields() throws Exception {
+        mockMvc.perform(get("/api/inventory/status")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].disponivel").exists())
+                .andExpect(jsonPath("$[0].reservada").exists())
+                // seed: 0 reservations, so disponivel == quantidadeAtual
+                .andExpect(jsonPath("$[0].reservada").value(0))
+                .andExpect(jsonPath("$[0].disponivel").value(1000));
     }
 }
