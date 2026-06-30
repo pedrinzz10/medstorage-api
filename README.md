@@ -2,309 +2,291 @@
 
 [![CI](https://github.com/pedrinzz10/medstorage-api/actions/workflows/ci.yml/badge.svg)](https://github.com/pedrinzz10/medstorage-api/actions/workflows/ci.yml)
 ![Java 21](https://img.shields.io/badge/Java-21-blue?logo=openjdk)
-![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1.0-6DB33F?logo=springboot)
+![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?logo=springboot)
 ![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)
 ![JaCoCo 80%+](https://img.shields.io/badge/Coverage-80%25%2B-brightgreen)
 
-API REST para gestão de estoque e pedidos de uma distribuidora de materiais médicos. Permite que vendedores registrem pedidos, gerentes de estoque atendam e controlem as saídas de produtos, e administradores gerenciem o catálogo e os usuários do sistema.
+API REST para gestão completa de pedidos, estoque, comissões e devoluções de uma distribuidora de materiais médicos. Construída com Java 21 e Spring Boot 4.1, autenticação JWT via cookie HttpOnly, versionamento de banco com Flyway e cobertura mínima de 80% enforced no CI.
 
 ---
 
 ## Sumário
 
-- [Sobre o projeto](#sobre-o-projeto)
-- [Stack e dependências](#stack-e-dependências)
+- [Stack](#stack)
 - [Arquitetura](#arquitetura)
-- [Como rodar](#como-rodar)
+- [Como executar](#como-executar)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
-- [Credenciais de seed](#credenciais-de-seed)
+- [Autenticação](#autenticação)
 - [Endpoints](#endpoints)
-- [Fluxo de um pedido](#fluxo-de-um-pedido)
-- [Controle de acesso](#controle-de-acesso)
-  - [Hardening de segurança](#hardening-de-segurança)
+- [Fluxo de negócio](#fluxo-de-negócio)
+- [Notificações por e-mail](#notificações-por-e-mail)
 - [Banco de dados](#banco-de-dados)
 - [Testes e cobertura](#testes-e-cobertura)
 - [Decisões técnicas](#decisões-técnicas)
+- [Documentação detalhada](#documentação-detalhada)
 
 ---
 
-## Sobre o projeto
-
-A MedStorage API resolve o ciclo completo de venda e distribuição de materiais médicos:
-
-1. **Vendedor** registra um pedido vinculando cliente, produtos e desconto opcional.
-2. **Gerente de estoque** aprova o pedido: o estoque é baixado automaticamente e o cliente recebe uma notificação por e-mail.
-3. **Cliente retira** o pedido na distribuidora, encerrando o ciclo.
-
-O sistema também expõe relatórios consolidados — resumo por cliente, desempenho de vendedor e alertas de estoque crítico — todos disponíveis via API sem consulta ad-hoc ao banco.
-
----
-
-## Stack e dependências
+## Stack
 
 | Camada | Tecnologia |
 |---|---|
 | Linguagem | Java 21 |
-| Framework | Spring Boot 4.1.0 |
-| Persistência | Spring Data JPA + Hibernate |
+| Framework | Spring Boot 4.1 · Spring Security 6 · Spring Data JPA |
 | Banco de dados | PostgreSQL 16 |
-| Migrações | Flyway 10 |
-| Autenticação | JWT stateless (JJWT 0.12.6) |
-| Validação | Jakarta Validation (Bean Validation 3.1) |
+| Autenticação | JWT stateless — JJWT 0.12 · cookie HttpOnly · SameSite Strict |
+| Migrações | Flyway 11 (16 versões) |
+| Validação | Jakarta Bean Validation 3.1 |
 | Documentação | SpringDoc OpenAPI 2.8.5 (Swagger UI) |
-| Notificação | Spring Mail (SMTP/Gmail) |
+| Notificação | Spring Mail via SMTP (Gmail) |
 | Build | Gradle 8 |
-| Testes | JUnit 5 + Mockito + Spring MockMvc |
-| Cobertura | JaCoCo 0.8.12 (mínimo 80% enforced no CI) |
-| Containerização | Docker + Docker Compose |
+| Testes | JUnit 5 · Spring MockMvc · JaCoCo 0.8.12 (mín. 80% enforced) |
+| Container | Docker · Docker Compose |
 | CI/CD | GitHub Actions |
 
 ---
 
 ## Arquitetura
 
-Organização **package-by-feature**: cada módulo de negócio agrupa seus próprios `entity`, `dto`, `repository`, `service` e `controller`.
+Organização **package-by-feature**: cada módulo de negócio agrupa seus próprios `entity`, `dto`, `repository`, `service` e `controller`, tornando cada feature autocontida.
 
 ```
 src/main/java/com/saas/MedStorage_api/
 │
-├── auth/           # Login, registro, validação e renovação de JWT
-├── user/           # Gerenciamento de usuários (CRUD, papéis)
-├── product/        # Catálogo de produtos com soft delete
-├── inventory/      # Controle de estoque e alertas de criticidade
-├── customer/       # Clientes com resumo de compras
-├── order/          # Pedidos: criação, edição, fluxo de status
-├── returns/        # Devoluções e rejeições
+├── auth/               Login, registro, refresh, logout e rate limiting
+├── user/               Gerenciamento de usuários (ADMIN)
+├── customer/           Cadastro e histórico consolidado de clientes
+├── product/            Catálogo com soft delete
+├── inventory/          Saldo e status de criticidade de estoque
+├── inventorymovement/  Histórico de movimentações (IN / OUT)
+├── order/              Pedidos — ciclo de vida PENDENTE → ATENDIDO → RETIRADO
+├── returns/            Devoluções — PENDENTE → PROCESSADO / REJEITADO
+├── commission/         Comissões de vendedores por período
+├── seller/             Performance de vendas por período (view)
 │
-├── security/       # JwtProvider, filtros e SecurityConfig
-├── exception/      # GlobalExceptionHandler + ApiError padronizado
-└── config/         # OpenAPI (Swagger), configurações gerais
+├── security/           JwtProvider, JwtAuthenticationFilter, SecurityConfig
+├── exception/          GlobalExceptionHandler + ApiError padronizado
+└── config/             OpenAPI / Swagger
 ```
 
-### Camadas dentro de cada módulo
+### Perfis de acesso (roles)
 
-```
-produto/
-  entity/        → @Entity JPA
-  dto/           → Records de entrada (Request) e saída (Response)
-  repository/    → interface JpaRepository
-  service/       → regras de negócio, @Transactional
-  controller/    → @RestController com @PreAuthorize
-  enums/         → tipos enumerados específicos do domínio
-```
+| Role | Valor no banco | Acesso |
+|---|---|---|
+| `ADMIN` | `admin` | Acesso total: usuários, produtos, comissões, relatórios |
+| `GERENTE_ESTOQUE` | `gerente_estoque` | Aprova pedidos, processa devoluções, consulta estoque |
+| `VENDEDOR` | `vendedor` | Cria pedidos, consulta própria performance |
+
+> Regras completas por role: [`docs/specs/04-business-rules.md`](docs/specs/04-business-rules.md)
 
 ---
 
-## Como rodar
+## Como executar
 
 ### Pré-requisitos
 
-- Docker e Docker Compose instalados
-- Para desenvolvimento local: JDK 21
-
----
+- Docker e Docker Compose
+- Para desenvolvimento local sem Docker: JDK 21
 
 ### Opção 1 — Docker Compose (recomendado)
 
 Sobe banco e aplicação em um único comando:
 
 ```bash
-# 1. Clone o repositório
 git clone https://github.com/pedrinzz10/medstorage-api.git
 cd medstorage-api
 
-# 2. Crie o arquivo de variáveis de ambiente
 cp .env.example .env
-# Edite .env e defina JWT_SECRET (obrigatório)
+# Edite .env — pelo menos JWT_SECRET é obrigatório
 
-# 3. Suba tudo
-docker-compose up --build
+docker compose up --build
 ```
 
-A API ficará disponível em `http://localhost:8080`.
-O Swagger UI estará em `http://localhost:8080/swagger-ui.html`.
-
----
+- API: `http://localhost:8080`
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 
 ### Opção 2 — Desenvolvimento local
 
 ```bash
-# 1. Suba apenas o banco
-docker-compose up postgres -d
+# 1. Sobe apenas o banco
+docker compose up postgres -d
 
-# 2. Configure as variáveis de ambiente
-export DB_NAME=medstorage
-export DB_USER=medstorage
-export DB_PASSWORD=medstorage
-export JWT_SECRET=uma-chave-de-pelo-menos-32-caracteres-aqui
+# 2. Crie o .env e defina as variáveis (ver seção abaixo)
+cp .env.example .env
 
-# 3. Execute a aplicação
+# 3. Executa a aplicação
 ./gradlew bootRun
 ```
 
-O Flyway executa as migrações automaticamente ao iniciar. Os dados de seed (usuários e produtos de exemplo) são inseridos nas migrações `V2` e `V6`.
+O Flyway aplica as 16 migrações automaticamente ao iniciar. Os dados de seed (usuários e produtos de exemplo) são inseridos nas migrações `V2` e `V6`.
+
+> Guia completo de configuração e SMTP: [`docs/configuracao.md`](docs/configuracao.md)
 
 ---
 
 ## Variáveis de ambiente
 
-Crie um arquivo `.env` na raiz a partir do exemplo abaixo:
+| Variável | Obrigatória | Default | Descrição |
+|---|---|---|---|
+| `JWT_SECRET` | **Sim** | — | Chave HMAC-SHA para assinar tokens (mín. 32 chars) |
+| `DB_NAME` | Não | `medstorage` | Nome do banco PostgreSQL |
+| `DB_USER` | Não | `medstorage` | Usuário do banco |
+| `DB_PASSWORD` | Não | `medstorage` | Senha do banco |
+| `DB_PORT` | Não | `5432` | Porta do banco |
+| `JWT_EXPIRATION_MS` | Não | `86400000` | Validade do token em ms (default: 24 h) |
+| `MAIL_USERNAME` | Não | — | E-mail SMTP para notificações |
+| `MAIL_PASSWORD` | Não | — | Senha de app do Gmail |
+| `MAIL_FROM_NAME` | Não | `MedStorage` | Nome exibido no campo "De:" |
+| `CORS_ALLOWED_ORIGINS` | Não | `http://localhost:3000` | Origens CORS aceitas, separadas por vírgula |
+| `TRUSTED_PROXIES` | Não | `""` (vazio) | IPs de proxy cujo `X-Forwarded-For` é confiado |
+| `COOKIE_SECURE` | Não | `false` | `true` em produção (HTTPS) — ativado automaticamente no perfil `prod` |
 
-```dotenv
-# Banco de dados
-DB_NAME=medstorage
-DB_USER=medstorage
-DB_PASSWORD=medstorage
-DB_PORT=5432
-
-# JWT — obrigatório, mínimo 32 caracteres
-JWT_SECRET=substitua-por-uma-chave-secreta-longa-e-aleatoria
-JWT_EXPIRATION_MS=86400000   # 24 horas (padrão)
-
-# CORS — origens permitidas (separadas por vírgula)
-# Padrão em dev: http://localhost:3000,http://localhost:8080
-CORS_ALLOWED_ORIGINS=https://app.distribuidor.com,https://admin.distribuidor.com
-
-# E-mail (opcional — notificações ao atender pedido)
-MAIL_USERNAME=seu-email@gmail.com
-MAIL_PASSWORD=sua-senha-de-app-gmail
-MAIL_FROM_NAME=MedStorage
-```
-
-> **Nota:** `JWT_SECRET` é obrigatório. Sem ele a aplicação não inicializa. As variáveis de e-mail são opcionais; se não configuradas, a notificação de pedido atendido é registrada em log mas não falha a operação.
-
-> **Produção:** defina `SPRING_PROFILES_ACTIVE=prod` para desabilitar o Swagger UI e o endpoint `/v3/api-docs` automaticamente.
+> Em produção `JWT_SECRET` é injetado como secret do GitHub Actions, nunca em arquivo commitado.
 
 ---
 
-## Credenciais de seed
+## Autenticação
 
-As migrações inserem três usuários de desenvolvimento prontos para uso:
+A API usa **JWT stateless**. O token é entregue em um **cookie HttpOnly**, o que impede acesso pelo JavaScript do navegador (proteção contra XSS). Clientes de API como Swagger ou ferramentas de linha de comando podem usar o header `Authorization: Bearer <token>` — o filtro aceita as duas formas.
 
-| E-mail | Senha | Papel |
+### Login
+
+```bash
+POST /api/auth/login
+Content-Type: application/json
+
+{ "email": "admin@distribuidor.com", "password": "Admin123!" }
+```
+
+Resposta:
+```
+HTTP/1.1 200 OK
+Set-Cookie: jwt=<token>; HttpOnly; SameSite=Strict; Path=/
+Content-Type: application/json
+
+{ "id": "...", "email": "admin@distribuidor.com", "nome": "Administrador", "role": "admin" }
+```
+
+O corpo da resposta retorna apenas os dados do usuário — o token não aparece no JSON, somente no cookie.
+
+### Fazendo requisições autenticadas
+
+**Via cookie** (navegador, frontend): o cookie é enviado automaticamente em cada requisição.
+
+**Via header** (Swagger, ferramentas de API):
+```
+Authorization: Bearer <token>
+```
+
+### Rate limiting
+
+O endpoint `/api/auth/login` aceita no máximo **5 tentativas por minuto por IP**. Excedido o limite, retorna `429 Too Many Requests`. O IP real é extraído do `X-Forwarded-For` apenas quando o `remoteAddr` da requisição está na lista `TRUSTED_PROXIES` (vazia por padrão), evitando spoofing de IP.
+
+### Credenciais de seed (somente desenvolvimento)
+
+| E-mail | Senha | Role |
 |---|---|---|
 | `admin@distribuidor.com` | `Admin123!` | `admin` |
 | `gerente@distribuidor.com` | `Gerente123!` | `gerente_estoque` |
 | `vendedor1@distribuidor.com` | `Vendedor123!` | `vendedor` |
 
-Também são inseridos 5 produtos de exemplo (luvas, seringas, máscaras, gaze e álcool) com estoque inicial de 1000 unidades cada.
-
-> Nunca usar em produção.
+> Documentação completa de auth, refresh e logout: [`docs/auth/README.md`](docs/auth/README.md)
 
 ---
 
 ## Endpoints
 
+Todos os endpoints retornam JSON. Erros seguem o formato padrão:
+
+```json
+{ "error": "mensagem descritiva", "status": 400 }
+```
+
+Para referência completa com exemplos de request/response: [`docs/api/reference.md`](docs/api/reference.md)
+
+---
+
 ### Autenticação — `/api/auth`
 
-| Método | Rota | Descrição | Auth |
+| Método | Path | Auth | Descrição |
 |---|---|---|---|
-| POST | `/api/auth/login` | Autentica e retorna token JWT. Limitado a 5 tentativas/min por IP | Pública |
-| POST | `/api/auth/register` | Cria novo usuário | ADMIN |
-| GET | `/api/auth/validate` | Verifica se o token é válido e retorna dados do usuário | Token |
-| POST | `/api/auth/refresh` | Reemite novo token a partir de um token ainda válido | Token |
-| POST | `/api/auth/logout` | Logout orientado ao cliente (JWT stateless — sem invalidação no servidor) | Token |
-
-**Exemplo de login:**
-```bash
-curl -s -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@distribuidor.com","password":"Admin123!"}' \
-  | jq .token
-```
-
-Use o token retornado no header `Authorization: Bearer <token>` em todas as requisições protegidas.
-
----
-
-### Produtos — `/api/products`
-
-Catálogo de materiais médicos comercializados pela distribuidora.
-
-| Método | Rota | Descrição | Auth |
-|---|---|---|---|
-| GET | `/api/products` | Lista produtos ativos (paginado, default 20/página) | Token |
-| GET | `/api/products/{id}` | Detalhe de um produto | Token |
-| POST | `/api/products` | Cria produto e inicializa entrada de estoque zerada | ADMIN |
-| PUT | `/api/products/{id}` | Atualiza dados do produto (nome, SKU, preço, unidade) | ADMIN |
-| DELETE | `/api/products/{id}` | Desativa produto (soft delete — `ativo=false`) | ADMIN |
-
-> Produtos desativados não aparecem na listagem nem no estoque, mas são preservados no histórico de pedidos (integridade referencial).
-
-**Corpo de criação/atualização:**
-```json
-{
-  "nome": "Luva Cirurgica Tamanho M",
-  "descricao": "Luva estéril para procedimentos cirúrgicos",
-  "sku": "LUV-M-001",
-  "precoBase": 0.50,
-  "unidade": "par",
-  "estoqueMinimo": 100,
-  "ativo": true
-}
-```
-
----
-
-### Estoque — `/api/inventory`
-
-Visão consolidada do estoque com classificação de criticidade calculada em tempo real.
-
-| Método | Rota | Descrição | Auth |
-|---|---|---|---|
-| GET | `/api/inventory/status` | Lista todos os produtos com quantidade e criticidade, ordenados por severidade | Token |
-| GET | `/api/inventory/{productId}` | Status de estoque de um produto específico | Token |
-
-**Classificação de criticidade:**
-
-| Status | Condição |
-|---|---|
-| `CRITICO` | `quantidade_atual <= estoque_minimo` |
-| `BAIXO` | `quantidade_atual <= estoque_minimo × 1.5` |
-| `OK` | Acima de 1.5× o mínimo |
-
-**Exemplo de resposta:**
-```json
-{
-  "id": "uuid",
-  "nome": "Luva Cirurgica Tamanho M",
-  "sku": "LUV-M-001",
-  "quantidadeAtual": 85,
-  "estoqueMinimo": 100,
-  "statusEstoque": "CRITICO"
-}
-```
+| `POST` | `/api/auth/login` | Público | Autentica e define cookie JWT |
+| `POST` | `/api/auth/register` | ADMIN | Cria novo usuário |
+| `POST` | `/api/auth/refresh` | Autenticado | Renova token e atualiza cookie |
+| `POST` | `/api/auth/logout` | Autenticado | Limpa o cookie JWT |
+| `GET` | `/api/auth/validate` | Autenticado | Valida token e retorna `{ valid, email, role }` |
 
 ---
 
 ### Clientes — `/api/customers`
 
-Cadastro de hospitais, clínicas e distribuidores atendidos.
-
-| Método | Rota | Descrição | Auth |
+| Método | Path | Auth | Descrição |
 |---|---|---|---|
-| POST | `/api/customers` | Cadastra novo cliente | Token |
-| GET | `/api/customers` | Lista clientes paginada | Token |
-| GET | `/api/customers/{id}` | Detalhe do cliente + resumo de compras | Token |
-| PUT | `/api/customers/{id}` | Atualiza dados cadastrais | Token |
-| GET | `/api/customers/{id}/orders` | Histórico paginado de pedidos do cliente | Token |
+| `POST` | `/api/customers` | Autenticado | Cria cliente; campo `dadosAdicionais` aceita JSONB livre |
+| `GET` | `/api/customers` | Autenticado | Lista com paginação |
+| `GET` | `/api/customers/{id}` | Autenticado | Detalhe + `totalPedidos`, `valorTotalGasto`, `ultimaCompra` |
+| `PUT` | `/api/customers/{id}` | Autenticado | Atualiza dados cadastrais |
+| `GET` | `/api/customers/{id}/orders` | Autenticado | Histórico de pedidos do cliente (paginado) |
 
-O endpoint `GET /api/customers/{id}` retorna o resumo consolidado de compras via `vw_customer_summary`: total de pedidos realizados, valor total gasto e data da última compra.
+O detalhe do cliente (`GET /{id}`) retorna o resumo consolidado via `vw_customer_summary`: apenas pedidos com status `RETIRADO` são contabilizados no `valorTotalGasto`.
+
+> Documentação detalhada: [`docs/api/customers.md`](docs/api/customers.md)
+
+---
+
+### Produtos — `/api/products`
+
+| Método | Path | Auth | Descrição |
+|---|---|---|---|
+| `GET` | `/api/products` | Autenticado | Lista produtos ativos (paginado) |
+| `GET` | `/api/products/{id}` | Autenticado | Detalhe do produto |
+| `POST` | `/api/products` | ADMIN | Cria produto e inicializa estoque em 0 |
+| `PUT` | `/api/products/{id}` | ADMIN | Atualiza dados do produto |
+| `DELETE` | `/api/products/{id}` | ADMIN | Desativa produto (soft delete — `ativo=false`) |
+
+Produtos desativados não aparecem na listagem nem no estoque, mas são preservados no histórico de pedidos para integridade referencial.
+
+> Documentação detalhada: [`docs/api/products-inventory.md`](docs/api/products-inventory.md)
+
+---
+
+### Estoque — `/api/inventory`
+
+| Método | Path | Auth | Descrição |
+|---|---|---|---|
+| `GET` | `/api/inventory/status` | Autenticado | Todos os produtos com status `OK` / `BAIXO` / `CRÍTICO`, ordenados por severidade |
+| `GET` | `/api/inventory/{productId}` | Autenticado | Status de um produto específico |
+
+**Classificação de criticidade:**
+
+| Status | Condição |
+|---|---|
+| `CRITICO` | `quantidadeAtual <= estoqueMinimo` |
+| `BAIXO` | `quantidadeAtual <= estoqueMinimo × 1.5` |
+| `OK` | Acima de 1.5× o mínimo |
+
+---
+
+### Movimentações de estoque — `/api/inventory/movements`
+
+| Método | Path | Auth | Descrição |
+|---|---|---|---|
+| `GET` | `/api/inventory/movements` | Autenticado | Histórico com filtro por `productId` e paginação |
+
+Movimentações são criadas automaticamente pelo sistema: `OUT` ao marcar pedido como `ATENDIDO`, `IN` ao processar uma devolução. Cada registro inclui `referenciaId` (id do pedido ou devolução) e `referenciaTipo` para rastreabilidade.
 
 ---
 
 ### Pedidos — `/api/orders`
 
-Núcleo operacional da distribuidora. Suporta criação, edição, exclusão e progressão de status.
-
-| Método | Rota | Descrição | Auth |
+| Método | Path | Auth | Descrição |
 |---|---|---|---|
-| POST | `/api/orders` | Cria pedido em status PENDENTE | VENDEDOR / ADMIN |
-| GET | `/api/orders` | Lista pedidos com filtros opcionais (paginado) | Token |
-| GET | `/api/orders/{id}` | Detalhe de um pedido | Token |
-| PUT | `/api/orders/{id}` | Edita itens, desconto e notas (somente status PENDENTE) | VENDEDOR / ADMIN |
-| DELETE | `/api/orders/{id}` | Exclui pedido (somente status PENDENTE) | VENDEDOR / ADMIN |
-| PATCH | `/api/orders/{id}/status` | Avança o status do pedido (ATENDIDO ou RETIRADO) | GERENTE / ADMIN |
+| `POST` | `/api/orders` | VENDEDOR, ADMIN | Cria pedido em status `PENDENTE` |
+| `GET` | `/api/orders` | Autenticado | Lista com filtros opcionais (paginado) |
+| `GET` | `/api/orders/{id}` | Autenticado | Detalhe com itens |
+| `PUT` | `/api/orders/{id}` | VENDEDOR, ADMIN | Atualiza itens e desconto (somente `PENDENTE`) |
+| `DELETE` | `/api/orders/{id}` | VENDEDOR, ADMIN | Exclui pedido (somente `PENDENTE`) |
+| `PATCH` | `/api/orders/{id}/status` | GERENTE_ESTOQUE, ADMIN | Avança para `ATENDIDO` ou `RETIRADO` |
 
 **Filtros disponíveis em `GET /api/orders`:**
 
@@ -312,17 +294,17 @@ Núcleo operacional da distribuidora. Suporta criação, edição, exclusão e p
 |---|---|---|
 | `status` | enum | `PENDENTE`, `ATENDIDO`, `RETIRADO` |
 | `customerId` | UUID | `?customerId=uuid` |
-| `criadoPor` | UUID | `?criadoPor=uuid` (filtra pelo vendedor responsável) |
+| `criadoPor` | UUID | `?criadoPor=uuid` |
 | `dataInicio` / `dataFim` | ISO-8601 | `?dataInicio=2025-01-01T00:00:00` |
 | `valorMin` / `valorMax` | decimal | `?valorMin=100&valorMax=5000` |
 
-**Corpo de criação de pedido:**
+**Body de criação:**
 ```json
 {
   "customerId": "uuid-do-cliente",
   "items": [
-    { "productId": "uuid-do-produto", "quantidade": 50 },
-    { "productId": "uuid-do-outro-produto", "quantidade": 10 }
+    { "productId": "uuid", "quantidade": 50 },
+    { "productId": "uuid", "quantidade": 10 }
   ],
   "descontoAplicado": 5.00,
   "tipoDesconto": "PERCENTUAL",
@@ -330,111 +312,152 @@ Núcleo operacional da distribuidora. Suporta criação, edição, exclusão e p
 }
 ```
 
+O preço unitário de cada item é congelado no momento da criação (snapshot do `precoBase` do produto).
+
+> Documentação detalhada: [`docs/api/orders.md`](docs/api/orders.md)
+
+---
+
+### Devoluções — `/api/returns`
+
+| Método | Path | Auth | Descrição |
+|---|---|---|---|
+| `POST` | `/api/returns` | GERENTE_ESTOQUE, ADMIN | Abre devolução (somente pedidos `RETIRADO`) |
+| `GET` | `/api/returns` | Autenticado | Lista devoluções (paginado) |
+| `GET` | `/api/returns/{id}` | Autenticado | Detalhe da devolução |
+| `PATCH` | `/api/returns/{id}/process` | GERENTE_ESTOQUE, ADMIN | Processa → reverte estoque com movimentação `IN` |
+| `PATCH` | `/api/returns/{id}/reject` | GERENTE_ESTOQUE, ADMIN | Rejeita → sem alterar estoque |
+
+A quantidade devolvida de cada item não pode exceder a quantidade original no pedido. O número de devolução é gerado automaticamente (`DEV-XXXXXX`).
+
+---
+
+### Comissões — `/api/commissions`
+
+| Método | Path | Auth | Descrição |
+|---|---|---|---|
+| `GET` | `/api/commissions` | ADMIN | Lista comissões com filtro por `status` (`PENDENTE` / `PAGO`) |
+
+O valor da comissão é calculado diretamente pelo banco: `valor_vendido × taxa_comissao / 100` (coluna `GENERATED STORED`).
+
+---
+
+### Performance de vendedores — `/api/sellers`
+
+| Método | Path | Auth | Descrição |
+|---|---|---|---|
+| `GET` | `/api/sellers/performance` | VENDEDOR, ADMIN | Performance do usuário autenticado no mês corrente |
+| `GET` | `/api/sellers/performance/all` | ADMIN | Performance de todos os vendedores ativos no mês |
+
+Performance considera apenas pedidos com status `RETIRADO` no mês vigente, via view `vw_seller_performance_current_month`. Retorna `totalPedidos`, `valorVendido` e `quantidadeUnidades`.
+
 ---
 
 ### Usuários — `/api/users`
 
-Gerenciamento de contas de acesso ao sistema. Exclusivo para administradores.
-
-| Método | Rota | Descrição | Auth |
+| Método | Path | Auth | Descrição |
 |---|---|---|---|
-| GET | `/api/users` | Lista todos os usuários (paginado) | ADMIN |
-| GET | `/api/users/{id}` | Detalhe de um usuário | ADMIN |
-| PATCH | `/api/users/{id}` | Atualiza nome, telefone, papel e status ativo/inativo | ADMIN |
+| `GET` | `/api/users` | ADMIN | Lista todos os usuários (paginado) |
+| `GET` | `/api/users/{id}` | ADMIN | Detalhe do usuário |
+| `PATCH` | `/api/users/{id}` | ADMIN | Atualiza nome, telefone, role e status ativo |
 
-> Criação de novos usuários é feita via `POST /api/auth/register` (também requer ADMIN).
+> Criação de novos usuários é feita via `POST /api/auth/register` (requer ADMIN).
 
 ---
 
-## Fluxo de um pedido
+## Fluxo de negócio
 
 ```
-[Vendedor]                    [Gerente de Estoque]         [Sistema]
-    │                                  │                       │
-    ├─ POST /api/orders ───────────────>                       │
-    │  status: PENDENTE                │                       │
-    │                                  │                       │
-    │                                  ├─ PATCH /{id}/status ─>│
-    │                                  │  newStatus: ATENDIDO  │
-    │                                  │                       ├─ valida estoque
-    │                                  │                       ├─ baixa quantidade
-    │                                  │                       ├─ envia e-mail ao cliente
-    │                                  │<──── 200 ATENDIDO ────┤
-    │                                  │                       │
-    │                                  ├─ PATCH /{id}/status ─>│
-    │                                  │  newStatus: RETIRADO  │
-    │                                  │<──── 200 RETIRADO ────┤
+                    ┌───────────┐
+      VENDEDOR      │  PENDENTE │  ← POST /api/orders
+      cria pedido   └─────┬─────┘
+                          │
+                          │  GERENTE marca ATENDIDO
+                          │  → estoque decrementado (OUT)
+                          │  → e-mail enviado ao cliente
+                          ▼
+                    ┌───────────┐
+                    │  ATENDIDO │  ← PATCH /{id}/status
+                    └─────┬─────┘
+                          │
+                          │  GERENTE confirma retirada
+                          ▼
+                    ┌───────────┐
+                    │  RETIRADO │  ← PATCH /{id}/status
+                    └─────┬─────┘
+                          │
+               (opcional) │  Devolução parcial ou total
+                          ▼
+                  ┌───────────────┐
+                  │   DEVOLUÇÃO   │
+                  │   PENDENTE    │
+                  └───────┬───────┘
+                          │
+              ┌───────────┴───────────┐
+              ▼                       ▼
+       ┌────────────┐         ┌────────────┐
+       │ PROCESSADO │         │ REJEITADO  │
+       │ estoque    │         │ estoque    │
+       │ revertido  │         │ intacto    │
+       └────────────┘         └────────────┘
 ```
 
 **Regras do fluxo:**
-- Somente pedidos `PENDENTE` podem ser editados (`PUT`) ou excluídos (`DELETE`).
-- A transição `PENDENTE → ATENDIDO` valida estoque disponível antes de baixar. Se insuficiente, retorna `400 Bad Request`.
-- A notificação por e-mail é best-effort: falhas de SMTP são logadas mas não revertem a transação.
-- Desconto máximo permitido: 50%.
-- Pedidos só avançam de status — não é possível regredir (`RETIRADO → ATENDIDO`).
+- Pedidos só podem ser editados (`PUT`) ou excluídos (`DELETE`) enquanto `PENDENTE`.
+- `PENDENTE → ATENDIDO` valida estoque disponível antes de decrementar. Estoque insuficiente retorna `400`.
+- Não é possível regredir status (`RETIRADO → ATENDIDO` retorna `400`).
+- Quantidade devolvida não pode exceder a do item original no pedido.
+- O número do pedido (`PED-XXXXXX`) e da devolução (`DEV-XXXXXX`) são gerados por triggers no banco.
+
+> Regras completas de negócio: [`docs/specs/04-business-rules.md`](docs/specs/04-business-rules.md)
 
 ---
 
-## Controle de acesso
+## Notificações por e-mail
 
-Autenticação via **JWT stateless** com papel (`role`) embutido no token.
+O sistema envia e-mails **após o commit da transação** via `TransactionSynchronizationManager.afterCommit()`. Falhas de SMTP são capturadas e logadas, mas nunca revertem a operação principal.
 
-| Papel | Valor no token | Permissões |
-|---|---|---|
-| Admin | `admin` | Acesso total — gerencia usuários, produtos e pode executar qualquer operação |
-| Gerente de estoque | `gerente_estoque` | Avança status de pedidos (`ATENDIDO` / `RETIRADO`), consulta estoque |
-| Vendedor | `vendedor` | Cria, edita e exclui pedidos; consulta clientes, produtos e estoque |
-
-**Rate limiting no login:** 5 tentativas por minuto por IP. Exceder retorna `429 Too Many Requests`.
-
-### Hardening de segurança
-
-| Proteção | Comportamento |
+| Evento | Destinatários |
 |---|---|
-| Conta desativada | Login e qualquer requisição com token válido de usuário `ativo=false` são bloqueados imediatamente — o filtro JWT consulta o banco a cada requisição |
-| Renovação de token | `POST /api/auth/refresh` busca o usuário no banco e reflete o papel e status atuais, evitando tokens com dados obsoletos |
-| CORS | Somente as origens listadas em `CORS_ALLOWED_ORIGINS` são aceitas (sem wildcard) |
-| Swagger em produção | Desabilitado automaticamente com `SPRING_PROFILES_ACTIVE=prod` |
+| Pedido criado (`PENDENTE`) | Todos os usuários com role `ADMIN` ou `GERENTE_ESTOQUE` ativos |
+| Pedido marcado como `ATENDIDO` | Cliente do pedido + todos os `ADMIN` e `GERENTE_ESTOQUE` ativos |
 
-### Autenticando no Swagger UI
-
-1. Acesse `http://localhost:8080/swagger-ui.html`
-2. Execute `POST /api/auth/login` com suas credenciais
-3. Copie o valor do campo `token` da resposta
-4. Clique no botão **Authorize** (cadeado no topo da página)
-5. No campo `bearerAuth`, cole o token e confirme
+> Configuração SMTP: [`docs/ferramentas/smtp-gmail.md`](docs/ferramentas/smtp-gmail.md)  
+> Decisão técnica (e-mail fora da transação): [`docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md`](docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md)
 
 ---
 
 ## Banco de dados
 
-### Migrações Flyway
+### Migrações Flyway (16 versões)
 
-| Versão | Descrição |
+| Versão | Conteúdo |
 |---|---|
-| V1 | Tabela `users` |
+| V1 | Tabela `users` + trigger `updated_at` |
 | V2 | Seed de usuários de desenvolvimento |
 | V3 | Tabela `products` |
-| V4 | Tabela `inventory` |
+| V4 | Tabela `inventory` (OneToOne com product) |
 | V5 | View `vw_inventory_status` |
-| V6 | Seed de produtos e estoque inicial |
-| V7 | Tabela `customers` |
+| V6 | Seed de 5 produtos e estoque inicial |
+| V7 | Tabela `customers` (com coluna `dados_adicionais JSONB`) |
 | V8 | Tabela `inventory_movements` |
-| V9 | Tabela `orders` |
-| V10 | Tabela `order_items` |
-| V11 | Tabela `returns` |
-| V12 | Tabela `return_items` |
-| V13 | Tabela `commissions` |
-| V14 | View `vw_seller_performance` |
+| V9 | Tabela `orders` + sequence + trigger de numeração |
+| V10 | Tabela `order_items` (coluna `subtotal GENERATED STORED`) |
+| V11 | Tabela `returns` + sequence + trigger de numeração |
+| V12 | Tabela `return_items` (coluna `subtotal GENERATED STORED`) |
+| V13 | Tabela `commissions` (coluna `valor_comissao GENERATED STORED`) |
+| V14 | View `vw_seller_performance_current_month` |
 | V15 | View `vw_customer_summary` |
+| V16 | Coluna `retirado_por` em `orders` |
 
-### Views de relatório
+### Views de relatório (somente leitura)
 
-| View | Uso via API |
+| View | Usado por |
 |---|---|
-| `vw_inventory_status` | Base para consultas manuais de estoque; o endpoint usa lógica Java para testabilidade |
-| `vw_seller_performance` | Desempenho por vendedor: total de pedidos e volume faturado |
-| `vw_customer_summary` | Resumo por cliente: total de pedidos, valor gasto e data da última compra (usada em `GET /api/customers/{id}`) |
+| `vw_seller_performance_current_month` | `GET /api/sellers/performance` — pedidos RETIRADO no mês atual |
+| `vw_customer_summary` | `GET /api/customers/{id}` — total de pedidos e valor gasto |
+
+> Esquema completo de banco: [`docs/db/README.md`](docs/db/README.md)
 
 ---
 
@@ -444,39 +467,101 @@ Autenticação via **JWT stateless** com papel (`role`) embutido no token.
 # Rodar todos os testes
 ./gradlew test
 
-# Gerar relatório de cobertura HTML
+# Gerar relatório HTML de cobertura
 ./gradlew jacocoTestReport
 # Relatório em: build/reports/jacoco/test/html/index.html
 
-# Verificar cobertura mínima de 80% (bloqueia o build se falhar)
+# Verificar cobertura mínima de 80% (bloqueia build se falhar)
 ./gradlew jacocoTestCoverageVerification
 ```
 
-A suíte cobre dois níveis:
+O banco PostgreSQL precisa estar rodando antes dos testes de integração:
 
-- **Testes unitários** com Mockito — services de todos os módulos testados isoladamente (sem banco, sem Spring context)
-- **Testes de integração** com `@SpringBootTest + MockMvc + @Transactional` — cada endpoint testado com token JWT real, validações de payload, respostas de erro (400/401/403/404) e fluxos de ponta a ponta
+```bash
+docker compose up postgres -d
+```
 
-O CI (GitHub Actions) roda `build + test + jacocoTestCoverageVerification` em todo PR para `main` e `develop`. O merge é bloqueado automaticamente se os testes ou a cobertura falharem.
+Os testes de integração sobem o contexto Spring completo com `@SpringBootTest + @AutoConfigureMockMvc + @Transactional`. Cada endpoint é testado com token JWT real extraído do cookie `Set-Cookie`, cobrindo fluxos de sucesso, erros de validação (400), autenticação (401), autorização (403) e recursos inexistentes (404).
+
+O CI (GitHub Actions) executa `build + test + jacocoTestCoverageVerification` em todo PR para `main` e `develop`. Merge bloqueado automaticamente se qualquer etapa falhar.
+
+> Detalhes do JaCoCo e métricas: [`docs/ferramentas/jacoco.md`](docs/ferramentas/jacoco.md)  
+> Pipeline de CI: [`docs/ferramentas/github-actions.md`](docs/ferramentas/github-actions.md)
 
 ---
 
 ## Decisões técnicas
 
-**JWT stateless:** sem sessão no servidor. O token carrega `userId`, `email` e `role`. Logout é client-side (descarte do token). Renovação via `POST /api/auth/refresh` com token ainda válido. Revogação real exigiria uma blacklist (Redis), fora do escopo atual.
+**JWT via cookie HttpOnly** — o token não aparece na resposta JSON nem pode ser lido por JavaScript, eliminando o risco de XSS roubar o token. Clientes de API usam `Authorization: Bearer` normalmente. Logout limpa o cookie no servidor. Ver [`docs/auth/README.md`](docs/auth/README.md).
 
-**Soft delete em produtos:** `DELETE /api/products/{id}` seta `ativo=false` em vez de remover o registro. Produtos estão referenciados em `order_items` — um hard delete quebraria a integridade referencial e apagaria o histórico de pedidos.
+**Rate limiting no IP real** — o `X-Forwarded-For` só é confiado se o `remoteAddr` estiver na lista `TRUSTED_PROXIES` (vazia por padrão). Previne que um atacante forje o IP de origem e bypass o limite de tentativas de login.
 
-**Estoque criado junto com o produto:** ao criar um produto via `POST /api/products`, uma entrada em `inventory` com `quantidade=0` é persistida na mesma transação. Garante que todo produto tem um registro de estoque desde o primeiro momento, evitando 404 no endpoint de inventário.
+**Verificação de `ativo` por requisição** — o filtro JWT consulta o banco a cada request para verificar `ativo=true`. Desativar um usuário via `PATCH /api/users/{id}` surte efeito imediato, sem precisar aguardar expiração do token. Custo: uma leitura por PK, negligenciável.
 
-**E-mail fora da transação de pedido:** a notificação ao cliente ao marcar um pedido como `ATENDIDO` ocorre após o commit via `TransactionSynchronizationManager.afterCommit()`. Falhas de SMTP são capturadas e logadas, mas nunca revertem a baixa de estoque. Instabilidade de e-mail não bloqueia operações críticas.
+**E-mail assíncrono pós-commit** — notificações são disparadas após o commit via `TransactionSynchronizationManager.afterCommit()`. Falha de SMTP não reverte a transação nem bloqueia o fluxo de pedidos. Ver [`docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md`](docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md).
 
-**Criticidade calculada em Java, não na view:** a view `vw_inventory_status` existe para consultas manuais, mas o endpoint `/api/inventory/status` recalcula a criticidade no `InventoryService`. Isso permite testar a lógica de classificação (`CRITICO` / `BAIXO` / `OK`) com testes unitários puros, sem depender de banco.
+**Soft delete em produtos** — `DELETE /api/products/{id}` seta `ativo=false`. Hard delete quebraria a integridade referencial com `order_items` e apagaria o histórico de pedidos.
 
-**Rate limiting em memória:** o controle de tentativas de login usa `ConcurrentHashMap` com janela deslizante de 1 minuto. Suficiente para instância única. Para múltiplas instâncias, seria necessário externalizar para Redis.
+**Estoque criado com o produto** — ao criar um produto, uma entrada em `inventory` com `quantidade=0` é persistida na mesma transação. Garante que todo produto tem registro de estoque desde o início.
 
-**Verificação de estado do usuário por requisição:** o filtro JWT consulta o banco a cada request autenticado para verificar se `ativo=true`. Isso garante que desativar um usuário via `PATCH /api/users/{id}` surta efeito imediato — sem precisar aguardar a expiração do token. O custo por requisição é uma leitura por chave primária (índice `users.id`), o que é negligenciável.
+**Colunas `GENERATED STORED`** — `order_items.subtotal`, `return_items.subtotal` e `commissions.valor_comissao` são calculadas pelo banco, garantindo consistência sem lógica duplicada na aplicação.
 
-**CORS restrito via variável de ambiente:** em vez de `allowedOriginPatterns("*")`, as origens aceitas são lidas de `CORS_ALLOWED_ORIGINS`. O default em desenvolvimento inclui `localhost:3000` e `localhost:8080`; em produção a variável deve listar explicitamente cada domínio do frontend.
+**Package-by-feature** — cada módulo é autocontido. `auth` não depende de `order`, `inventory` não conhece `customer`. Facilita extrair módulos como microsserviços no futuro. Ver [`docs/decisoes-tecnicas/`](docs/decisoes-tecnicas/).
 
-**Package-by-feature com sub-pacotes:** cada módulo de negócio é autocontido. `auth` não depende de `order`, `inventory` não conhece `customer`. Facilita extrair módulos em microsserviços no futuro sem grandes refatorações.
+---
+
+## Swagger UI
+
+Disponível apenas em desenvolvimento (desabilitado em produção via `application-prod.yml`).
+
+```
+http://localhost:8080/swagger-ui/index.html
+```
+
+Para autenticar no Swagger UI:
+1. Execute `POST /api/auth/login` na interface
+2. Na aba de resposta, veja o header `Set-Cookie: jwt=<token>;...`
+3. Copie o valor do token (entre `jwt=` e `;`)
+4. Clique em **Authorize** e cole como `Bearer <token>`
+
+> Configuração do SpringDoc: [`docs/ferramentas/springdoc-openapi.md`](docs/ferramentas/springdoc-openapi.md)
+
+---
+
+## Documentação detalhada
+
+### Ordem de leitura recomendada
+
+Se você está chegando ao projeto pela primeira vez, leia na ordem abaixo. Cada documento assume que o anterior já foi lido.
+
+| # | Documento | O que você vai entender |
+|---|---|---|
+| 1 | [`docs/specs/01-overview.md`](docs/specs/01-overview.md) | Contexto de negócio, problema resolvido e escopo do sistema |
+| 2 | [`docs/specs/02-data-model.md`](docs/specs/02-data-model.md) | Entidades, relacionamentos e o modelo de dados completo |
+| 3 | [`docs/specs/04-business-rules.md`](docs/specs/04-business-rules.md) | Regras por role, validações, fluxo de status e restrições |
+| 4 | [`docs/auth/README.md`](docs/auth/README.md) | Como a autenticação JWT + cookie funciona na prática |
+| 5 | [`docs/db/README.md`](docs/db/README.md) | Schema do banco, views, triggers e índices |
+| 6 | [`docs/configuracao.md`](docs/configuracao.md) | Setup local, variáveis de ambiente e configuração de e-mail |
+| 7 | [`docs/api/reference.md`](docs/api/reference.md) | Todos os endpoints com body, params e exemplos de response |
+
+### Aprofundamento por tema
+
+Após a leitura inicial, consulte conforme a necessidade:
+
+| Tema | Documento |
+|---|---|
+| Endpoints de auth | [`docs/api/auth.md`](docs/api/auth.md) |
+| Endpoints de pedidos | [`docs/api/orders.md`](docs/api/orders.md) |
+| Endpoints de clientes | [`docs/api/customers.md`](docs/api/customers.md) |
+| Endpoints de produtos e estoque | [`docs/api/products-inventory.md`](docs/api/products-inventory.md) |
+| Por que Flyway e não Liquibase | [`docs/decisoes-tecnicas/0001-ferramenta-de-migration.md`](docs/decisoes-tecnicas/0001-ferramenta-de-migration.md) |
+| Por que PostgreSQL | [`docs/decisoes-tecnicas/0002-banco-de-dados-dev.md`](docs/decisoes-tecnicas/0002-banco-de-dados-dev.md) |
+| Por que e-mail assíncrono | [`docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md`](docs/decisoes-tecnicas/0005-email-fora-da-transacao-de-pedido.md) |
+| Estratégia de branching e CI/CD | [`docs/decisoes-tecnicas/0004-estrategia-de-branching-e-cicd.md`](docs/decisoes-tecnicas/0004-estrategia-de-branching-e-cicd.md) |
+| Docker e Docker Compose | [`docs/ferramentas/docker.md`](docs/ferramentas/docker.md) |
+| Flyway (migrations) | [`docs/ferramentas/flyway.md`](docs/ferramentas/flyway.md) |
+| JaCoCo (cobertura) | [`docs/ferramentas/jacoco.md`](docs/ferramentas/jacoco.md) |
+| GitHub Actions (CI) | [`docs/ferramentas/github-actions.md`](docs/ferramentas/github-actions.md) |
+| Swagger / SpringDoc | [`docs/ferramentas/springdoc-openapi.md`](docs/ferramentas/springdoc-openapi.md) |
+| Configuração de SMTP | [`docs/ferramentas/smtp-gmail.md`](docs/ferramentas/smtp-gmail.md) |
+| Roadmap e histórias de usuário | [`docs/specs/05-roadmap.md`](docs/specs/05-roadmap.md) · [`docs/specs/06-user-stories.md`](docs/specs/06-user-stories.md) |
