@@ -42,13 +42,16 @@ public class InventoryService {
 
     private InventoryStatusResponse toStatusResponse(Inventory inventory) {
         Product product = inventory.getProduct();
+        int disponivel = inventory.getQuantidade() - inventory.getQuantidadeReservada();
         return new InventoryStatusResponse(
                 product.getId(),
                 product.getNome(),
                 product.getSku(),
                 inventory.getQuantidade(),
+                disponivel,
+                inventory.getQuantidadeReservada(),
                 product.getEstoqueMinimo(),
-                resolveStatus(inventory.getQuantidade(), product.getEstoqueMinimo()));
+                resolveStatus(disponivel, product.getEstoqueMinimo()));
     }
 
     private String resolveStatus(int quantidade, Integer estoqueMinimo) {
