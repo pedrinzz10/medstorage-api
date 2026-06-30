@@ -100,7 +100,7 @@ public class OrderNotificationService {
         StringBuilder body = new StringBuilder();
         body.append("Numero do pedido: ").append(order.getNumeroPedido()).append('\n');
         body.append("Data de criacao: ").append(order.getCreatedAt()).append('\n');
-        body.append("Data de atendimento: ").append(order.getDataAtendimento()).append('\n');
+        body.append("Pronto em: ").append(order.getDataPronte()).append('\n');
         body.append("Itens:\n");
         for (OrderItem item : order.getItems()) {
             body.append(" - ").append(item.getProduct().getNome())
@@ -132,11 +132,11 @@ public class OrderNotificationService {
 
     private String buildOrderAttendedBody(Order order) {
         StringBuilder body = new StringBuilder();
-        body.append("O pedido abaixo foi ATENDIDO e o estoque foi baixado.\n\n");
+        body.append("O pedido abaixo esta PRONTO para retirada.\n\n");
         body.append("Pedido: ").append(order.getNumeroPedido()).append('\n');
         body.append("Cliente: ").append(order.getCustomer().getNome()).append('\n');
         body.append("Vendedor: ").append(order.getCriadoPor().getNome()).append('\n');
-        body.append("Atendido em: ").append(order.getDataAtendimento()).append('\n');
+        body.append("Pronto em: ").append(order.getDataPronte()).append('\n');
         body.append("Itens:\n");
         for (OrderItem item : order.getItems()) {
             body.append(" - ").append(item.getProduct().getNome())
