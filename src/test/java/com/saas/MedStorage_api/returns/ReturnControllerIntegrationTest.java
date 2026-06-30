@@ -61,7 +61,7 @@ class ReturnControllerIntegrationTest {
         return json.split("\"id\":\"")[1].split("\"")[0];
     }
 
-    private String createRetiradoOrderId(String customerId, String productId, int quantidade) throws Exception {
+    private String createFinalizadoOrderId(String customerId, String productId, int quantidade) throws Exception {
         String vendedorToken = vendedorToken();
         String gerenteToken = gerenteToken();
 
@@ -77,13 +77,25 @@ class ReturnControllerIntegrationTest {
         mockMvc.perform(patch("/api/orders/" + orderId + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + gerenteToken)
-                        .content("{\"newStatus\":\"ATENDIDO\"}"))
+                        .content("{\"newStatus\":\"CONFIRMADO\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(patch("/api/orders/" + orderId + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + gerenteToken)
-                        .content("{\"newStatus\":\"RETIRADO\"}"))
+                        .content("{\"newStatus\":\"SEPARADO\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"PRONTO\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"FINALIZADO\"}"))
                 .andExpect(status().isOk());
 
         return orderId;
@@ -101,7 +113,7 @@ class ReturnControllerIntegrationTest {
     void create_withRetiradoOrder_returns201() throws Exception {
         String productId = firstActiveProductId();
         String customerId = createCustomerId();
-        String orderId = createRetiradoOrderId(customerId, productId, 5);
+        String orderId = createFinalizadoOrderId(customerId, productId, 5);
 
         mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -151,7 +163,7 @@ class ReturnControllerIntegrationTest {
     void create_withQuantityExceedingOrder_returns400() throws Exception {
         String productId = firstActiveProductId();
         String customerId = createCustomerId();
-        String orderId = createRetiradoOrderId(customerId, productId, 2);
+        String orderId = createFinalizadoOrderId(customerId, productId, 2);
 
         mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -165,7 +177,7 @@ class ReturnControllerIntegrationTest {
     void process_withGerenteRole_returns200AndRestoresInventory() throws Exception {
         String productId = firstActiveProductId();
         String customerId = createCustomerId();
-        String orderId = createRetiradoOrderId(customerId, productId, 3);
+        String orderId = createFinalizadoOrderId(customerId, productId, 3);
 
         String inventoryBefore = mockMvc.perform(get("/api/inventory/" + productId)
                         .header("Authorization", "Bearer " + adminToken()))
@@ -199,7 +211,7 @@ class ReturnControllerIntegrationTest {
     void process_withVendedorRole_returns403() throws Exception {
         String productId = firstActiveProductId();
         String customerId = createCustomerId();
-        String orderId = createRetiradoOrderId(customerId, productId, 1);
+        String orderId = createFinalizadoOrderId(customerId, productId, 1);
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -219,7 +231,7 @@ class ReturnControllerIntegrationTest {
     void process_withAlreadyProcessedReturn_returns400() throws Exception {
         String productId = firstActiveProductId();
         String customerId = createCustomerId();
-        String orderId = createRetiradoOrderId(customerId, productId, 2);
+        String orderId = createFinalizadoOrderId(customerId, productId, 2);
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -242,7 +254,7 @@ class ReturnControllerIntegrationTest {
     void reject_withPendingReturn_returns200WithRejectedStatus() throws Exception {
         String productId = firstActiveProductId();
         String customerId = createCustomerId();
-        String orderId = createRetiradoOrderId(customerId, productId, 2);
+        String orderId = createFinalizadoOrderId(customerId, productId, 2);
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -264,7 +276,7 @@ class ReturnControllerIntegrationTest {
     void reject_withAlreadyProcessedReturn_returns400() throws Exception {
         String productId = firstActiveProductId();
         String customerId = createCustomerId();
-        String orderId = createRetiradoOrderId(customerId, productId, 2);
+        String orderId = createFinalizadoOrderId(customerId, productId, 2);
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -288,7 +300,7 @@ class ReturnControllerIntegrationTest {
     void reject_withVendedorRole_returns403() throws Exception {
         String productId = firstActiveProductId();
         String customerId = createCustomerId();
-        String orderId = createRetiradoOrderId(customerId, productId, 1);
+        String orderId = createFinalizadoOrderId(customerId, productId, 1);
 
         String createResponse = mockMvc.perform(post("/api/returns")
                         .contentType(MediaType.APPLICATION_JSON)

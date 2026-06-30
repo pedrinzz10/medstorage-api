@@ -114,55 +114,90 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
-    void fullFlow_createOrder_thenMarkAsAttended_decrementsStock() throws Exception {
+    void fullFlow_createOrder_thenAdvanceThroughAllStatuses_updatesStockCorrectly() throws Exception {
         String customerId = firstCustomerId();
         String productId = firstActiveProductId();
         String vendedorToken = vendedorToken();
+        String gerenteToken = gerenteToken();
 
+        // 1. Criar pedido → CRIADO
         String createResponse = mockMvc.perform(post("/api/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + vendedorToken)
                         .content("{\"customerId\":\"" + customerId
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":10}]}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.status").value("CRIADO"))
                 .andExpect(jsonPath("$.numeroPedido").exists())
                 .andReturn().getResponse().getContentAsString();
         String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
 
-        mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", "Bearer " + vendedorToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDENTE"));
-
-        String beforeStatus = mockMvc.perform(get("/api/inventory/" + productId).header("Authorization", "Bearer " + vendedorToken))
-                .andReturn().getResponse().getContentAsString();
-        int quantidadeAntes = Integer.parseInt(beforeStatus.split("\"quantidadeAtual\":")[1].split(",")[0]);
-
+        // 2. Confirmar pagamento → CONFIRMADO
         mockMvc.perform(patch("/api/orders/" + orderId + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + gerenteToken())
-                        .content("{\"newStatus\":\"ATENDIDO\"}"))
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"CONFIRMADO\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ATENDIDO"))
-                .andExpect(jsonPath("$.dataAtendimento").exists());
+                .andExpect(jsonPath("$.status").value("CONFIRMADO"))
+                .andExpect(jsonPath("$.dataConfirmado").exists());
 
-        String afterStatus = mockMvc.perform(get("/api/inventory/" + productId).header("Authorization", "Bearer " + vendedorToken))
+        // captura estoque total antes de SEPARADO
+        String beforeSeparado = mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + vendedorToken))
                 .andReturn().getResponse().getContentAsString();
-        int quantidadeDepois = Integer.parseInt(afterStatus.split("\"quantidadeAtual\":")[1].split(",")[0]);
+        int totalAntes = Integer.parseInt(beforeSeparado.split("\"quantidadeAtual\":")[1].split(",")[0]);
+        int disponivelAntes = Integer.parseInt(beforeSeparado.split("\"disponivel\":")[1].split(",")[0]);
 
-        org.junit.jupiter.api.Assertions.assertEquals(quantidadeAntes - 10, quantidadeDepois);
-
+        // 3. Separar itens → SEPARADO (reserva estoque, nao decrementa total)
         mockMvc.perform(patch("/api/orders/" + orderId + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + gerenteToken())
-                        .content("{\"newStatus\":\"RETIRADO\"}"))
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"SEPARADO\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("RETIRADO"))
-                .andExpect(jsonPath("$.dataRetirada").exists());
+                .andExpect(jsonPath("$.status").value("SEPARADO"))
+                .andExpect(jsonPath("$.dataSeparado").exists());
+
+        // verifica reserva: total nao muda, disponivel diminui, reservada aumenta
+        String afterSeparado = mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andReturn().getResponse().getContentAsString();
+        int totalAposSeparado = Integer.parseInt(afterSeparado.split("\"quantidadeAtual\":")[1].split(",")[0]);
+        int reservadaAposSeparado = Integer.parseInt(afterSeparado.split("\"reservada\":")[1].split(",")[0]);
+
+        org.junit.jupiter.api.Assertions.assertEquals(totalAntes, totalAposSeparado);
+        org.junit.jupiter.api.Assertions.assertEquals(10, reservadaAposSeparado);
+
+        // 4. Marcar como PRONTO → cliente e staff recebem email (capturado/logado se falhar)
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"PRONTO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PRONTO"))
+                .andExpect(jsonPath("$.dataPronte").exists());
+
+        // 5. Finalizar → FINALIZADO (decrementa total e reserva, acumula comissao)
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"FINALIZADO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FINALIZADO"))
+                .andExpect(jsonPath("$.dataFinalizado").exists());
+
+        // verifica: total decrementou, reservada voltou a 0
+        String afterFinalizado = mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andReturn().getResponse().getContentAsString();
+        int totalAposFinalizado = Integer.parseInt(afterFinalizado.split("\"quantidadeAtual\":")[1].split(",")[0]);
+        int reservadaAposFinalizado = Integer.parseInt(afterFinalizado.split("\"reservada\":")[1].split(",")[0]);
+
+        org.junit.jupiter.api.Assertions.assertEquals(totalAntes - 10, totalAposFinalizado);
+        org.junit.jupiter.api.Assertions.assertEquals(0, reservadaAposFinalizado);
     }
 
     @Test
-    void markAsWithdrawn_withPendingOrder_returns400() throws Exception {
+    void changeStatus_toFinalizadoDirectlyFromCriado_returns400() throws Exception {
         String customerId = firstCustomerId();
         String productId = firstActiveProductId();
         String vendedorToken = vendedorToken();
@@ -178,7 +213,7 @@ class OrderControllerIntegrationTest {
         mockMvc.perform(patch("/api/orders/" + orderId + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + gerenteToken())
-                        .content("{\"newStatus\":\"RETIRADO\"}"))
+                        .content("{\"newStatus\":\"FINALIZADO\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -194,10 +229,10 @@ class OrderControllerIntegrationTest {
                 .content("{\"customerId\":\"" + customerId
                         + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"));
 
-        mockMvc.perform(get("/api/orders?status=PENDENTE&page=0&size=50")
+        mockMvc.perform(get("/api/orders?status=CRIADO&page=0&size=50")
                         .header("Authorization", "Bearer " + vendedorToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].status").value("PENDENTE"));
+                .andExpect(jsonPath("$.content[0].status").value("CRIADO"));
     }
 
     @Test
@@ -219,10 +254,11 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
-    void markAsAttended_withInsufficientStock_returns400() throws Exception {
+    void changeStatus_toSeparado_withInsufficientStock_returns400() throws Exception {
         String customerId = firstCustomerId();
         String productId = firstActiveProductId();
         String vendedorToken = vendedorToken();
+        String gerenteToken = gerenteToken();
 
         String createResponse = mockMvc.perform(post("/api/orders")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -235,16 +271,73 @@ class OrderControllerIntegrationTest {
 
         mockMvc.perform(patch("/api/orders/" + orderId + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + gerenteToken())
-                        .content("{\"newStatus\":\"ATENDIDO\"}"))
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"CONFIRMADO\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"SEPARADO\"}"))
                 .andExpect(status().isBadRequest());
 
         mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", "Bearer " + vendedorToken))
-                .andExpect(jsonPath("$.status").value("PENDENTE"));
+                .andExpect(jsonPath("$.status").value("CONFIRMADO"));
     }
 
     @Test
-    void delete_withPendingOrder_returns204() throws Exception {
+    void changeStatus_toCancelado_fromSeparado_releasesReservation() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+        String gerenteToken = gerenteToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":5}]}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"CONFIRMADO\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"SEPARADO\"}"))
+                .andExpect(status().isOk());
+
+        // verifica que reserva foi criada
+        String afterSeparado = mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andReturn().getResponse().getContentAsString();
+        int reservadaAntes = Integer.parseInt(afterSeparado.split("\"reservada\":")[1].split(",")[0]);
+        org.junit.jupiter.api.Assertions.assertTrue(reservadaAntes >= 5);
+
+        // cancelar
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"CANCELADO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADO"));
+
+        // verifica que reserva foi liberada
+        String afterCancelado = mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andReturn().getResponse().getContentAsString();
+        int reservadaDepois = Integer.parseInt(afterCancelado.split("\"reservada\":")[1].split(",")[0]);
+        org.junit.jupiter.api.Assertions.assertEquals(reservadaAntes - 5, reservadaDepois);
+    }
+
+    @Test
+    void delete_withCriadoOrder_returns204() throws Exception {
         String customerId = firstCustomerId();
         String productId = firstActiveProductId();
         String vendedorToken = vendedorToken();
@@ -268,7 +361,7 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
-    void delete_withAttendedOrder_returns400() throws Exception {
+    void delete_withConfirmadoOrder_returns400() throws Exception {
         String customerId = firstCustomerId();
         String productId = firstActiveProductId();
         String vendedorToken = vendedorToken();
@@ -284,7 +377,7 @@ class OrderControllerIntegrationTest {
         mockMvc.perform(patch("/api/orders/" + orderId + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + gerenteToken())
-                        .content("{\"newStatus\":\"ATENDIDO\"}"))
+                        .content("{\"newStatus\":\"CONFIRMADO\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(delete("/api/orders/" + orderId)
@@ -311,7 +404,7 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
-    void update_withPendingOrder_returns200WithNewValues() throws Exception {
+    void update_withCriadoOrder_returns200WithNewValues() throws Exception {
         String customerId = firstCustomerId();
         String productId = firstActiveProductId();
         String vendedorToken = vendedorToken();
@@ -332,7 +425,7 @@ class OrderControllerIntegrationTest {
                                 + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":5}]"
                                 + ",\"notas\":\"atualizado\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.status").value("CRIADO"))
                 .andExpect(jsonPath("$.notas").value("atualizado"))
                 .andExpect(jsonPath("$.items[0].quantidade").value(5));
     }
@@ -359,7 +452,7 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
-    void markAsAttended_withVendedorRole_returns403() throws Exception {
+    void changeStatus_toConfirmado_withVendedorRole_returns403() throws Exception {
         String customerId = firstCustomerId();
         String productId = firstActiveProductId();
         String vendedorToken = vendedorToken();
@@ -375,7 +468,7 @@ class OrderControllerIntegrationTest {
         mockMvc.perform(patch("/api/orders/" + orderId + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + vendedorToken)
-                        .content("{\"newStatus\":\"ATENDIDO\"}"))
+                        .content("{\"newStatus\":\"CONFIRMADO\"}"))
                 .andExpect(status().isForbidden());
     }
 }
