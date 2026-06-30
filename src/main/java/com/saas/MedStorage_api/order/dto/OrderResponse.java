@@ -18,8 +18,11 @@ public record OrderResponse(
         BigDecimal descontoAplicado,
         String tipoDesconto,
         String notas,
-        LocalDateTime dataAtendimento,
-        LocalDateTime dataRetirada,
+        LocalDateTime dataConfirmado,
+        LocalDateTime dataSeparado,
+        LocalDateTime dataPronte,
+        LocalDateTime dataFinalizado,
+        UUID finalizadoPor,
         List<OrderItemResponse> items
 ) {
     public static OrderResponse from(Order order) {
@@ -34,8 +37,11 @@ public record OrderResponse(
                 order.getDescontoAplicado(),
                 order.getTipoDesconto(),
                 order.getNotas(),
-                order.getDataAtendimento(),
-                order.getDataRetirada(),
+                order.getDataConfirmado(),
+                order.getDataSeparado(),
+                order.getDataPronte(),
+                order.getDataFinalizado(),
+                order.getFinalizadoPor() != null ? order.getFinalizadoPor().getId() : null,
                 order.getItems().stream().map(OrderItemResponse::from).toList());
     }
 }

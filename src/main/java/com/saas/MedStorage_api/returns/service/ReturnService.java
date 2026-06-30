@@ -63,9 +63,9 @@ public class ReturnService {
         Order order = orderRepository.findById(request.orderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-        if (order.getStatus() != OrderStatus.RETIRADO) {
+        if (order.getStatus() != OrderStatus.FINALIZADO) {
             throw new BadRequestException(
-                    "Returns are only allowed for orders with status RETIRADO, current status: " + order.getStatus());
+                    "Returns are only allowed for orders with status FINALIZADO, current status: " + order.getStatus());
         }
 
         Return ret = Return.builder()

@@ -1,11 +1,11 @@
 package com.saas.MedStorage_api.order.controller;
 
-import com.saas.MedStorage_api.exception.BadRequestException;
 import com.saas.MedStorage_api.order.dto.ChangeOrderStatusRequest;
 import com.saas.MedStorage_api.order.dto.CreateOrderRequest;
 import com.saas.MedStorage_api.order.dto.OrderResponse;
 import com.saas.MedStorage_api.order.enums.OrderStatus;
 import com.saas.MedStorage_api.order.service.OrderService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -35,7 +35,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Tag(name = "Pedidos", description = "Criação e gerenciamento de pedidos. Fluxo: PENDENTE → ATENDIDO (baixa estoque + e-mail) → RETIRADO")
+@Tag(name = "Pedidos", description = "Criação e gerenciamento de pedidos. Fluxo: CRIADO → CONFIRMADO → SEPARADO (reserva estoque) → PRONTO (e-mail) → FINALIZADO (baixa estoque + comissão)")
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
@@ -46,7 +46,7 @@ public class OrderController {
         this.orderService = orderService;
     }
 
-    @Operation(summary = "Criar pedido", description = "Cria um pedido em status PENDENTE. Requer papel VENDEDOR ou ADMIN")
+    @Operation(summary = "Criar pedido", description = "Cria um pedido em status CRIADO. Requer papel VENDEDOR ou ADMIN")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Pedido criado"),
         @ApiResponse(responseCode = "400", description = "Dados inválidos ou desconto acima de 50%"),
@@ -85,7 +85,7 @@ public class OrderController {
                 status, customerId, criadoPor, dataInicio, dataFim, valorMin, valorMax, pageable));
     }
 
-    @Operation(summary = "Editar pedido", description = "Permite alterar itens, cliente, desconto e notas. Somente pedidos PENDENTE podem ser editados. Requer VENDEDOR ou ADMIN")
+    @Operation(summary = "Editar pedido", description = "Permite alterar itens, cliente, desconto e notas. Somente pedidos CRIADO podem ser editados. Requer VENDEDOR ou ADMIN")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Pedido atualizado"),
         @ApiResponse(responseCode = "400", description = "Pedido não está em PENDENTE ou dados inválidos"),
@@ -100,7 +100,7 @@ public class OrderController {
         return ResponseEntity.ok(orderService.update(id, request, authentication));
     }
 
-    @Operation(summary = "Excluir pedido", description = "Remove um pedido. Somente pedidos PENDENTE podem ser excluídos. Requer VENDEDOR ou ADMIN")
+    @Operation(summary = "Excluir pedido", description = "Remove um pedido. Somente pedidos CRIADO podem ser excluídos. Requer VENDEDOR ou ADMIN")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Pedido excluído"),
         @ApiResponse(responseCode = "400", description = "Pedido não está em PENDENTE"),
@@ -113,7 +113,7 @@ public class OrderController {
         orderService.delete(id);
     }
 
-    @Operation(summary = "Mudar status do pedido", description = "Transições permitidas: PENDENTE → ATENDIDO (baixa estoque, envia e-mail), ATENDIDO → RETIRADO. Requer GERENTE_ESTOQUE ou ADMIN")
+    @Operation(summary = "Mudar status do pedido", description = "Transições: CRIADO→CONFIRMADO, CONFIRMADO→SEPARADO (reserva estoque), SEPARADO→PRONTO (e-mail ao cliente), PRONTO→FINALIZADO (baixa estoque + comissão), qualquer→CANCELADO. Requer GERENTE_ESTOQUE ou ADMIN")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Status atualizado"),
         @ApiResponse(responseCode = "400", description = "Transição de status inválida ou estoque insuficiente"),
@@ -123,11 +123,6 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('GERENTE_ESTOQUE', 'ADMIN')")
     public ResponseEntity<OrderResponse> changeStatus(
             @PathVariable UUID id, @Valid @RequestBody ChangeOrderStatusRequest request, Authentication authentication) {
-        return switch (request.newStatus().toUpperCase()) {
-            case "ATENDIDO" -> ResponseEntity.ok(orderService.markAsAttended(id, authentication));
-            case "RETIRADO" -> ResponseEntity.ok(orderService.markAsWithdrawn(id, authentication));
-            default -> throw new BadRequestException(
-                    "Status transition to '" + request.newStatus() + "' is not supported");
-        };
+        return ResponseEntity.ok(orderService.changeStatus(id, request.newStatus(), authentication));
     }
 }
