@@ -35,7 +35,7 @@ API REST para gestão completa de pedidos, estoque, comissões e devoluções de
 | Framework | Spring Boot 4.1 · Spring Security 6 · Spring Data JPA |
 | Banco de dados | PostgreSQL 16 |
 | Autenticação | JWT stateless — JJWT 0.12 · cookie HttpOnly · SameSite Strict |
-| Migrações | Flyway 11 (16 versões) |
+| Migrações | Flyway 11 (17 versões) |
 | Validação | Jakarta Bean Validation 3.1 |
 | Documentação | SpringDoc OpenAPI 2.8.5 (Swagger UI) |
 | Notificação | Spring Mail via SMTP (Gmail) |
@@ -59,7 +59,7 @@ src/main/java/com/saas/MedStorage_api/
 ├── product/            Catálogo com soft delete
 ├── inventory/          Saldo e status de criticidade de estoque
 ├── inventorymovement/  Histórico de movimentações (IN / OUT)
-├── order/              Pedidos — ciclo de vida PENDENTE → ATENDIDO → RETIRADO
+├── order/              Pedidos — ciclo de vida CRIADO → CONFIRMADO → SEPARADO → PRONTO → FINALIZADO
 ├── returns/            Devoluções — PENDENTE → PROCESSADO / REJEITADO
 ├── commission/         Comissões de vendedores por período
 ├── seller/             Performance de vendas por período (view)
@@ -228,7 +228,7 @@ Para referência completa com exemplos de request/response: [`docs/api/reference
 | `PUT` | `/api/customers/{id}` | Autenticado | Atualiza dados cadastrais |
 | `GET` | `/api/customers/{id}/orders` | Autenticado | Histórico de pedidos do cliente (paginado) |
 
-O detalhe do cliente (`GET /{id}`) retorna o resumo consolidado via `vw_customer_summary`: apenas pedidos com status `RETIRADO` são contabilizados no `valorTotalGasto`.
+O detalhe do cliente (`GET /{id}`) retorna o resumo consolidado via `vw_customer_summary`: apenas pedidos com status `FINALIZADO` são contabilizados no `valorTotalGasto`.
 
 > Documentação detalhada: [`docs/api/customers.md`](docs/api/customers.md)
 
@@ -257,12 +257,20 @@ Produtos desativados não aparecem na listagem nem no estoque, mas são preserva
 | `GET` | `/api/inventory/status` | Autenticado | Todos os produtos com status `OK` / `BAIXO` / `CRÍTICO`, ordenados por severidade |
 | `GET` | `/api/inventory/{productId}` | Autenticado | Status de um produto específico |
 
-**Classificação de criticidade:**
+Cada resposta de estoque expõe três valores:
+
+| Campo | Significado |
+|---|---|
+| `quantidadeAtual` | Estoque físico total |
+| `reservada` | Unidades alocadas para pedidos em `SEPARADO` ou `PRONTO` |
+| `disponivel` | `quantidadeAtual − reservada` — o que ainda pode ser comprometido |
+
+**Classificação de criticidade** (baseada em `disponivel`):**
 
 | Status | Condição |
 |---|---|
-| `CRITICO` | `quantidadeAtual <= estoqueMinimo` |
-| `BAIXO` | `quantidadeAtual <= estoqueMinimo × 1.5` |
+| `CRITICO` | `disponivel <= estoqueMinimo` |
+| `BAIXO` | `disponivel <= estoqueMinimo × 1.5` |
 | `OK` | Acima de 1.5× o mínimo |
 
 ---
@@ -273,7 +281,7 @@ Produtos desativados não aparecem na listagem nem no estoque, mas são preserva
 |---|---|---|---|
 | `GET` | `/api/inventory/movements` | Autenticado | Histórico com filtro por `productId` e paginação |
 
-Movimentações são criadas automaticamente pelo sistema: `OUT` ao marcar pedido como `ATENDIDO`, `IN` ao processar uma devolução. Cada registro inclui `referenciaId` (id do pedido ou devolução) e `referenciaTipo` para rastreabilidade.
+Movimentações são criadas automaticamente pelo sistema: `OUT` ao finalizar um pedido (`FINALIZADO`), `IN` ao processar uma devolução. Cada registro inclui `referenciaId` (id do pedido ou devolução) e `referenciaTipo` para rastreabilidade.
 
 ---
 
@@ -281,18 +289,18 @@ Movimentações são criadas automaticamente pelo sistema: `OUT` ao marcar pedid
 
 | Método | Path | Auth | Descrição |
 |---|---|---|---|
-| `POST` | `/api/orders` | VENDEDOR, ADMIN | Cria pedido em status `PENDENTE` |
+| `POST` | `/api/orders` | VENDEDOR, ADMIN | Cria pedido em status `CRIADO` |
 | `GET` | `/api/orders` | Autenticado | Lista com filtros opcionais (paginado) |
 | `GET` | `/api/orders/{id}` | Autenticado | Detalhe com itens |
-| `PUT` | `/api/orders/{id}` | VENDEDOR, ADMIN | Atualiza itens e desconto (somente `PENDENTE`) |
-| `DELETE` | `/api/orders/{id}` | VENDEDOR, ADMIN | Exclui pedido (somente `PENDENTE`) |
-| `PATCH` | `/api/orders/{id}/status` | GERENTE_ESTOQUE, ADMIN | Avança para `ATENDIDO` ou `RETIRADO` |
+| `PUT` | `/api/orders/{id}` | VENDEDOR, ADMIN | Atualiza itens e desconto (somente `CRIADO`) |
+| `DELETE` | `/api/orders/{id}` | VENDEDOR, ADMIN | Exclui pedido (somente `CRIADO`) |
+| `PATCH` | `/api/orders/{id}/status` | GERENTE_ESTOQUE, ADMIN | Avança para o próximo estado ou cancela |
 
 **Filtros disponíveis em `GET /api/orders`:**
 
 | Parâmetro | Tipo | Exemplo |
 |---|---|---|
-| `status` | enum | `PENDENTE`, `ATENDIDO`, `RETIRADO` |
+| `status` | enum | `CRIADO`, `CONFIRMADO`, `SEPARADO`, `PRONTO`, `FINALIZADO`, `CANCELADO` |
 | `customerId` | UUID | `?customerId=uuid` |
 | `criadoPor` | UUID | `?criadoPor=uuid` |
 | `dataInicio` / `dataFim` | ISO-8601 | `?dataInicio=2025-01-01T00:00:00` |
@@ -322,7 +330,7 @@ O preço unitário de cada item é congelado no momento da criação (snapshot d
 
 | Método | Path | Auth | Descrição |
 |---|---|---|---|
-| `POST` | `/api/returns` | GERENTE_ESTOQUE, ADMIN | Abre devolução (somente pedidos `RETIRADO`) |
+| `POST` | `/api/returns` | GERENTE_ESTOQUE, ADMIN | Abre devolução (somente pedidos `FINALIZADO`) |
 | `GET` | `/api/returns` | Autenticado | Lista devoluções (paginado) |
 | `GET` | `/api/returns/{id}` | Autenticado | Detalhe da devolução |
 | `PATCH` | `/api/returns/{id}/process` | GERENTE_ESTOQUE, ADMIN | Processa → reverte estoque com movimentação `IN` |
@@ -349,7 +357,7 @@ O valor da comissão é calculado diretamente pelo banco: `valor_vendido × taxa
 | `GET` | `/api/sellers/performance` | VENDEDOR, ADMIN | Performance do usuário autenticado no mês corrente |
 | `GET` | `/api/sellers/performance/all` | ADMIN | Performance de todos os vendedores ativos no mês |
 
-Performance considera apenas pedidos com status `RETIRADO` no mês vigente, via view `vw_seller_performance_current_month`. Retorna `totalPedidos`, `valorVendido` e `quantidadeUnidades`.
+Performance considera apenas pedidos com status `FINALIZADO` no mês vigente, via view `vw_seller_performance_current_month`. Retorna `totalPedidos`, `valorVendido` e `quantidadeUnidades`.
 
 ---
 

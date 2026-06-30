@@ -110,7 +110,7 @@ class ReturnControllerIntegrationTest {
     }
 
     @Test
-    void create_withRetiradoOrder_returns201() throws Exception {
+    void create_withFinalizadoOrder_returns201() throws Exception {
         String productId = firstActiveProductId();
         String customerId = createCustomerId();
         String orderId = createFinalizadoOrderId(customerId, productId, 5);

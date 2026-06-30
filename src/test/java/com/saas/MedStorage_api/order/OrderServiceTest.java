@@ -331,4 +331,86 @@ class OrderServiceTest {
         assertThrows(BadRequestException.class, () -> orderService.update(order.getId(), request, authentication));
         verify(orderRepository, never()).saveAndFlush(any(Order.class));
     }
+
+    @Test
+    void changeStatus_toConfirmado_withCriadoOrder_setsDataConfirmado() {
+        Order order = criadoOrderWith(5);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        OrderResponse response = orderService.changeStatus(order.getId(), "CONFIRMADO", authentication);
+
+        assertEquals("CONFIRMADO", response.status());
+        assertNotNull(order.getDataConfirmado());
+    }
+
+    @Test
+    void changeStatus_toConfirmado_withNonCriadoOrder_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.SEPARADO);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class,
+                () -> orderService.changeStatus(order.getId(), "CONFIRMADO", authentication));
+        assertEquals(OrderStatus.SEPARADO, order.getStatus());
+    }
+
+    @Test
+    void changeStatus_toPronte_withSeparadoOrder_setsDataPronte() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.SEPARADO);
+        order.setDataConfirmado(java.time.LocalDateTime.now());
+        order.setDataSeparado(java.time.LocalDateTime.now());
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        OrderResponse response = orderService.changeStatus(order.getId(), "PRONTO", authentication);
+
+        assertEquals("PRONTO", response.status());
+        assertNotNull(order.getDataPronte());
+    }
+
+    @Test
+    void changeStatus_toPronte_withNonSeparadoOrder_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        // CRIADO → PRONTO sem passar por CONFIRMADO/SEPARADO deve falhar
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class,
+                () -> orderService.changeStatus(order.getId(), "PRONTO", authentication));
+        assertEquals(OrderStatus.CRIADO, order.getStatus());
+    }
+
+    @Test
+    void changeStatus_toCancelado_fromPronte_releasesReservation() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.PRONTO);
+        Inventory inventory = Inventory.builder()
+                .id(UUID.randomUUID()).product(luva).quantidade(100).quantidadeReservada(5).build();
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        when(inventoryRepository.findByProductId(luva.getId())).thenReturn(Optional.of(inventory));
+
+        OrderResponse response = orderService.changeStatus(order.getId(), "CANCELADO", authentication);
+
+        assertEquals("CANCELADO", response.status());
+        assertEquals(0, inventory.getQuantidadeReservada());
+    }
+
+    @Test
+    void changeStatus_toCancelado_fromCriado_doesNotTouchInventory() {
+        Order order = criadoOrderWith(5);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        OrderResponse response = orderService.changeStatus(order.getId(), "CANCELADO", authentication);
+
+        assertEquals("CANCELADO", response.status());
+        verify(inventoryRepository, never()).findByProductId(any());
+    }
+
+    @Test
+    void changeStatus_withUnsupportedStatus_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class,
+                () -> orderService.changeStatus(order.getId(), "INVALIDO", authentication));
+    }
 }

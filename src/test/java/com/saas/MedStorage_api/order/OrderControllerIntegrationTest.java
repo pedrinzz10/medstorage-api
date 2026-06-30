@@ -452,6 +452,191 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
+    void findAll_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/orders"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void findById_withExistingOrder_returns200() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(get("/api/orders/" + orderId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(orderId))
+                .andExpect(jsonPath("$.status").value("CRIADO"))
+                .andExpect(jsonPath("$.items").isArray());
+    }
+
+    @Test
+    void findById_withUnknownOrder_returns404() throws Exception {
+        mockMvc.perform(get("/api/orders/" + UUID.randomUUID())
+                        .header("Authorization", "Bearer " + vendedorToken()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void update_withConfirmadoOrder_returns400() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"newStatus\":\"CONFIRMADO\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put("/api/orders/" + orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":2}]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void changeStatus_toCancelado_fromCriado_returns200() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"newStatus\":\"CANCELADO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADO"));
+
+        mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andExpect(jsonPath("$.reservada").value(0));
+    }
+
+    @Test
+    void changeStatus_toCancelado_fromPronte_releasesReservation() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+        String gerenteToken = gerenteToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":5}]}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        for (String s : new String[]{"CONFIRMADO", "SEPARADO", "PRONTO"}) {
+            mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .header("Authorization", "Bearer " + gerenteToken)
+                            .content("{\"newStatus\":\"" + s + "\"}"))
+                    .andExpect(status().isOk());
+        }
+
+        String inventoryJson = mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andReturn().getResponse().getContentAsString();
+        int reservadaAntes = Integer.parseInt(inventoryJson.split("\"reservada\":")[1].split(",")[0]);
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"CANCELADO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADO"));
+
+        String inventoryAfter = mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + vendedorToken))
+                .andReturn().getResponse().getContentAsString();
+        int reservadaDepois = Integer.parseInt(inventoryAfter.split("\"reservada\":")[1].split(",")[0]);
+
+        org.junit.jupiter.api.Assertions.assertEquals(reservadaAntes - 5, reservadaDepois);
+    }
+
+    @Test
+    void changeStatus_toCancelado_fromFinalizado_returns400() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+        String gerenteToken = gerenteToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        for (String s : new String[]{"CONFIRMADO", "SEPARADO", "PRONTO", "FINALIZADO"}) {
+            mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .header("Authorization", "Bearer " + gerenteToken)
+                            .content("{\"newStatus\":\"" + s + "\"}"))
+                    .andExpect(status().isOk());
+        }
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken)
+                        .content("{\"newStatus\":\"CANCELADO\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void changeStatus_withInvalidStatus_returns400() throws Exception {
+        String customerId = firstCustomerId();
+        String productId = firstActiveProductId();
+        String vendedorToken = vendedorToken();
+
+        String createResponse = mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken)
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":1}]}"))
+                .andReturn().getResponse().getContentAsString();
+        String orderId = createResponse.split("\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch("/api/orders/" + orderId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"newStatus\":\"PENDENTE\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void changeStatus_toConfirmado_withVendedorRole_returns403() throws Exception {
         String customerId = firstCustomerId();
         String productId = firstActiveProductId();
