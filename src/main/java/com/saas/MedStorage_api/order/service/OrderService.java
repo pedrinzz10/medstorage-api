@@ -84,7 +84,7 @@ public class OrderService {
                 .numeroPedido(generateNumeroPedido())
                 .customer(customer)
                 .criadoPor(criadoPor)
-                .status(OrderStatus.PENDENTE)
+                .status(OrderStatus.CRIADO)
                 .tipoDesconto(request.tipoDesconto())
                 .notas(request.notas())
                 .build();
@@ -142,8 +142,8 @@ public class OrderService {
     @Transactional
     public void delete(UUID id) {
         Order order = getOrThrow(id);
-        if (order.getStatus() != OrderStatus.PENDENTE) {
-            throw new BadRequestException("Only PENDENTE orders can be deleted");
+        if (order.getStatus() != OrderStatus.CRIADO) {
+            throw new BadRequestException("Only CRIADO orders can be deleted");
         }
         orderRepository.delete(order);
         log.info("Pedido {} excluido", order.getNumeroPedido());
@@ -152,8 +152,8 @@ public class OrderService {
     @Transactional
     public OrderResponse update(UUID id, CreateOrderRequest request, Authentication authentication) {
         Order order = getOrThrow(id);
-        if (order.getStatus() != OrderStatus.PENDENTE) {
-            throw new BadRequestException("Only PENDENTE orders can be updated");
+        if (order.getStatus() != OrderStatus.CRIADO) {
+            throw new BadRequestException("Only CRIADO orders can be updated");
         }
 
         Customer customer = customerRepository.findById(request.customerId())
@@ -188,26 +188,79 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse markAsAttended(UUID orderId, Authentication authentication) {
+    public OrderResponse changeStatus(UUID orderId, String newStatus, Authentication authentication) {
         Order order = getOrThrow(orderId);
-
-        if (order.getStatus() != OrderStatus.PENDENTE) {
-            throw new BadRequestException("Order cannot transition from " + order.getStatus() + " to ATENDIDO");
-        }
-
         User actingUser = currentUser(authentication);
+        return switch (newStatus.toUpperCase()) {
+            case "CONFIRMADO" -> markAsConfirmado(order, actingUser);
+            case "SEPARADO"   -> markAsSeparado(order, actingUser);
+            case "PRONTO"     -> markAsPronte(order, actingUser);
+            case "FINALIZADO" -> markAsFinalizado(order, actingUser);
+            case "CANCELADO"  -> markAsCancelado(order, actingUser);
+            default -> throw new BadRequestException("Status transition to '" + newStatus + "' is not supported");
+        };
+    }
 
+    private OrderResponse markAsConfirmado(Order order, User actingUser) {
+        if (order.getStatus() != OrderStatus.CRIADO) {
+            throw new BadRequestException("Order cannot transition from " + order.getStatus() + " to CONFIRMADO");
+        }
+        order.setStatus(OrderStatus.CONFIRMADO);
+        order.setDataConfirmado(LocalDateTime.now());
+        Order saved = orderRepository.save(order);
+        log.info("Pedido {} marcado como CONFIRMADO por user={}", saved.getNumeroPedido(), actingUser.getEmail());
+        return OrderResponse.from(saved);
+    }
+
+    private OrderResponse markAsSeparado(Order order, User actingUser) {
+        if (order.getStatus() != OrderStatus.CONFIRMADO) {
+            throw new BadRequestException("Order cannot transition from " + order.getStatus() + " to SEPARADO");
+        }
         for (OrderItem item : order.getItems()) {
             Inventory inventory = inventoryRepository.findByProductId(item.getProduct().getId())
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Inventory not found for product " + item.getProduct().getNome()));
 
-            if (inventory.getQuantidade() < item.getQuantidade()) {
+            int disponivel = inventory.getQuantidade() - inventory.getQuantidadeReservada();
+            if (disponivel < item.getQuantidade()) {
                 throw new InsufficientStockException(
-                        "Insufficient stock for product " + item.getProduct().getNome());
+                        "Insufficient available stock for product " + item.getProduct().getNome()
+                        + ". Available: " + disponivel + ", requested: " + item.getQuantidade());
             }
+            inventory.setQuantidadeReservada(inventory.getQuantidadeReservada() + item.getQuantidade());
+            inventoryRepository.save(inventory);
+        }
+        order.setStatus(OrderStatus.SEPARADO);
+        order.setDataSeparado(LocalDateTime.now());
+        Order saved = orderRepository.save(order);
+        log.info("Pedido {} marcado como SEPARADO por user={}", saved.getNumeroPedido(), actingUser.getEmail());
+        return OrderResponse.from(saved);
+    }
+
+    private OrderResponse markAsPronte(Order order, User actingUser) {
+        if (order.getStatus() != OrderStatus.SEPARADO) {
+            throw new BadRequestException("Order cannot transition from " + order.getStatus() + " to PRONTO");
+        }
+        order.setStatus(OrderStatus.PRONTO);
+        order.setDataPronte(LocalDateTime.now());
+        Order saved = orderRepository.save(order);
+        log.info("Pedido {} marcado como PRONTO por user={}", saved.getNumeroPedido(), actingUser.getEmail());
+        registerAfterCommit(() -> notificationService.sendOrderReadyEmail(saved));
+        registerAfterCommit(() -> notificationService.sendOrderAttendedToStaff(saved));
+        return OrderResponse.from(saved);
+    }
+
+    private OrderResponse markAsFinalizado(Order order, User actingUser) {
+        if (order.getStatus() != OrderStatus.PRONTO) {
+            throw new BadRequestException("Order cannot transition from " + order.getStatus() + " to FINALIZADO");
+        }
+        for (OrderItem item : order.getItems()) {
+            Inventory inventory = inventoryRepository.findByProductId(item.getProduct().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Inventory not found for product " + item.getProduct().getNome()));
 
             inventory.setQuantidade(inventory.getQuantidade() - item.getQuantidade());
+            inventory.setQuantidadeReservada(inventory.getQuantidadeReservada() - item.getQuantidade());
             inventoryRepository.save(inventory);
 
             movementRepository.save(InventoryMovement.builder()
@@ -220,37 +273,37 @@ public class OrderService {
                     .criadoPor(actingUser)
                     .build());
         }
-
-        order.setStatus(OrderStatus.ATENDIDO);
-        order.setDataAtendimento(LocalDateTime.now());
+        order.setStatus(OrderStatus.FINALIZADO);
+        order.setDataFinalizado(LocalDateTime.now());
+        order.setFinalizadoPor(actingUser);
         Order saved = orderRepository.save(order);
-
-        log.info("Pedido {} marcado como ATENDIDO por user={}", saved.getNumeroPedido(), authentication.getName());
-        registerAfterCommit(() -> notificationService.sendOrderReadyEmail(saved));
-        registerAfterCommit(() -> notificationService.sendOrderAttendedToStaff(saved));
-
+        log.info("Pedido {} marcado como FINALIZADO por user={}", saved.getNumeroPedido(), actingUser.getEmail());
+        acumulaComissao(saved);
         return OrderResponse.from(saved);
     }
 
-    @Transactional
-    public OrderResponse markAsWithdrawn(UUID orderId, Authentication authentication) {
-        Order order = getOrThrow(orderId);
-
-        if (order.getStatus() != OrderStatus.ATENDIDO) {
-            throw new BadRequestException("Order cannot transition from " + order.getStatus() + " to RETIRADO");
+    private OrderResponse markAsCancelado(Order order, User actingUser) {
+        if (order.getStatus() == OrderStatus.FINALIZADO) {
+            throw new BadRequestException("Orders with status FINALIZADO cannot be cancelled");
         }
-
-        User actingUser = currentUser(authentication);
-        order.setStatus(OrderStatus.RETIRADO);
-        order.setDataRetirada(LocalDateTime.now());
-        order.setRetiradoPor(actingUser);
-
+        if (order.getStatus() == OrderStatus.SEPARADO || order.getStatus() == OrderStatus.PRONTO) {
+            liberarReserva(order);
+        }
+        order.setStatus(OrderStatus.CANCELADO);
         Order saved = orderRepository.save(order);
-        log.info("Pedido {} marcado como RETIRADO por user={}", saved.getNumeroPedido(), authentication.getName());
-
-        acumulaComissao(saved);
-
+        log.info("Pedido {} marcado como CANCELADO por user={}", saved.getNumeroPedido(), actingUser.getEmail());
         return OrderResponse.from(saved);
+    }
+
+    private void liberarReserva(Order order) {
+        for (OrderItem item : order.getItems()) {
+            Inventory inventory = inventoryRepository.findByProductId(item.getProduct().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Inventory not found for product " + item.getProduct().getNome()));
+            inventory.setQuantidadeReservada(
+                    Math.max(0, inventory.getQuantidadeReservada() - item.getQuantidade()));
+            inventoryRepository.save(inventory);
+        }
     }
 
     private void acumulaComissao(Order order) {

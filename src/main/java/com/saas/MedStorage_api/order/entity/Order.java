@@ -56,7 +56,7 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private OrderStatus status = OrderStatus.PENDENTE;
+    private OrderStatus status = OrderStatus.CRIADO;
 
     @Column(name = "valor_total", nullable = false)
     private BigDecimal valorTotal;
@@ -70,15 +70,21 @@ public class Order {
 
     private String notas;
 
-    @Column(name = "data_atendimento")
-    private LocalDateTime dataAtendimento;
+    @Column(name = "data_confirmado")
+    private LocalDateTime dataConfirmado;
 
-    @Column(name = "data_retirada")
-    private LocalDateTime dataRetirada;
+    @Column(name = "data_separado")
+    private LocalDateTime dataSeparado;
+
+    @Column(name = "data_pronto")
+    private LocalDateTime dataPronte;
+
+    @Column(name = "data_finalizado")
+    private LocalDateTime dataFinalizado;
 
     @ManyToOne
-    @JoinColumn(name = "retirado_por")
-    private User retiradoPor;
+    @JoinColumn(name = "finalizado_por")
+    private User finalizadoPor;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

@@ -40,6 +40,9 @@ public class Inventory {
     @Column(nullable = false)
     private int quantidade;
 
+    @Column(name = "quantidade_reservada", nullable = false)
+    private int quantidadeReservada;
+
     @Column(name = "data_ultima_atualizacao", insertable = false, updatable = false)
     private LocalDateTime dataUltimaAtualizacao;
 

@@ -152,13 +152,13 @@ class OrderServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> orderService.create(request, authentication));
     }
 
-    private Order pendingOrderWith(int quantidade) {
+    private Order criadoOrderWith(int quantidade) {
         Order order = Order.builder()
                 .id(UUID.randomUUID())
                 .numeroPedido("PED-001000")
                 .customer(customer)
                 .criadoPor(vendedor)
-                .status(OrderStatus.PENDENTE)
+                .status(OrderStatus.CRIADO)
                 .valorTotal(new BigDecimal("100.00"))
                 .build();
         order.addItem(OrderItem.builder().product(luva).quantidade(quantidade).precoUnitario(luva.getPrecoBase()).build());
@@ -166,78 +166,116 @@ class OrderServiceTest {
     }
 
     @Test
-    void markAsAttended_withSufficientStock_decrementsInventoryAndCreatesMovement() {
-        Order order = pendingOrderWith(5);
-        Inventory inventory = Inventory.builder().id(UUID.randomUUID()).product(luva).quantidade(100).build();
+    void changeStatus_toSeparado_withSufficientStock_reservesInventory() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.CONFIRMADO);
+        Inventory inventory = Inventory.builder().id(UUID.randomUUID()).product(luva).quantidade(100).quantidadeReservada(0).build();
 
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
         when(inventoryRepository.findByProductId(luva.getId())).thenReturn(Optional.of(inventory));
 
-        OrderResponse response = orderService.markAsAttended(order.getId(), authentication);
+        OrderResponse response = orderService.changeStatus(order.getId(), "SEPARADO", authentication);
 
-        assertEquals("ATENDIDO", response.status());
-        assertEquals(95, inventory.getQuantidade());
-        verify(movementRepository).save(any());
+        assertEquals("SEPARADO", response.status());
+        assertEquals(100, inventory.getQuantidade());
+        assertEquals(5, inventory.getQuantidadeReservada());
+        verify(movementRepository, never()).save(any());
     }
 
     @Test
-    void markAsAttended_withInsufficientStock_throwsAndDoesNotChangeStatus() {
-        Order order = pendingOrderWith(200);
-        Inventory inventory = Inventory.builder().id(UUID.randomUUID()).product(luva).quantidade(100).build();
+    void changeStatus_toSeparado_withInsufficientAvailableStock_throwsAndDoesNotReserve() {
+        Order order = criadoOrderWith(200);
+        order.setStatus(OrderStatus.CONFIRMADO);
+        Inventory inventory = Inventory.builder().id(UUID.randomUUID()).product(luva).quantidade(100).quantidadeReservada(0).build();
 
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
         when(inventoryRepository.findByProductId(luva.getId())).thenReturn(Optional.of(inventory));
 
-        assertThrows(InsufficientStockException.class, () -> orderService.markAsAttended(order.getId(), authentication));
+        assertThrows(InsufficientStockException.class,
+                () -> orderService.changeStatus(order.getId(), "SEPARADO", authentication));
 
-        assertEquals(OrderStatus.PENDENTE, order.getStatus());
-        assertEquals(100, inventory.getQuantidade());
+        assertEquals(OrderStatus.CONFIRMADO, order.getStatus());
+        assertEquals(0, inventory.getQuantidadeReservada());
         verify(movementRepository, never()).save(any());
         verify(orderRepository, never()).save(any());
     }
 
     @Test
-    void markAsAttended_withAlreadyAttendedOrder_throwsBadRequestException() {
-        Order order = pendingOrderWith(5);
-        order.setStatus(OrderStatus.ATENDIDO);
+    void changeStatus_toSeparado_withAlreadySeparadoOrder_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.SEPARADO);
 
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
 
-        assertThrows(BadRequestException.class, () -> orderService.markAsAttended(order.getId(), authentication));
+        assertThrows(BadRequestException.class,
+                () -> orderService.changeStatus(order.getId(), "SEPARADO", authentication));
         verify(inventoryRepository, never()).findByProductId(any());
     }
 
     @Test
-    void markAsWithdrawn_withAttendedOrder_setsRetiradoStatusAndDate() {
-        Order order = pendingOrderWith(5);
-        order.setStatus(OrderStatus.ATENDIDO);
-        order.setDataAtendimento(java.time.LocalDateTime.now());
+    void changeStatus_toFinalizado_withProntoOrder_decrementsInventoryAndCreatesMovement() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.PRONTO);
+        order.setDataConfirmado(java.time.LocalDateTime.now());
+        order.setDataSeparado(java.time.LocalDateTime.now());
+        order.setDataPronte(java.time.LocalDateTime.now());
+        Inventory inventory = Inventory.builder().id(UUID.randomUUID()).product(luva).quantidade(100).quantidadeReservada(5).build();
 
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        when(inventoryRepository.findByProductId(luva.getId())).thenReturn(Optional.of(inventory));
         lenient().when(commissionRepository.findByVendedorAndPeriodoInicioAndPeriodoFim(any(), any(), any()))
                 .thenReturn(Optional.empty());
         lenient().when(commissionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        OrderResponse response = orderService.markAsWithdrawn(order.getId(), authentication);
+        OrderResponse response = orderService.changeStatus(order.getId(), "FINALIZADO", authentication);
 
-        assertEquals("RETIRADO", response.status());
-        assertEquals(OrderStatus.RETIRADO, order.getStatus());
-        assertNotNull(order.getDataRetirada());
+        assertEquals("FINALIZADO", response.status());
+        assertEquals(95, inventory.getQuantidade());
+        assertEquals(0, inventory.getQuantidadeReservada());
+        assertNotNull(order.getDataFinalizado());
+        verify(movementRepository).save(any());
     }
 
     @Test
-    void markAsWithdrawn_withPendingOrder_throwsBadRequestException() {
-        Order order = pendingOrderWith(5);
+    void changeStatus_toFinalizado_withCriadoOrder_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
 
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
 
-        assertThrows(BadRequestException.class, () -> orderService.markAsWithdrawn(order.getId(), authentication));
-        assertEquals(OrderStatus.PENDENTE, order.getStatus());
+        assertThrows(BadRequestException.class,
+                () -> orderService.changeStatus(order.getId(), "FINALIZADO", authentication));
+        assertEquals(OrderStatus.CRIADO, order.getStatus());
     }
 
     @Test
-    void delete_withPendingOrder_callsRepositoryDelete() {
-        Order order = pendingOrderWith(5);
+    void changeStatus_toCancelado_fromSeparado_releasesReservation() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.SEPARADO);
+        Inventory inventory = Inventory.builder().id(UUID.randomUUID()).product(luva).quantidade(100).quantidadeReservada(5).build();
+
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        when(inventoryRepository.findByProductId(luva.getId())).thenReturn(Optional.of(inventory));
+
+        OrderResponse response = orderService.changeStatus(order.getId(), "CANCELADO", authentication);
+
+        assertEquals("CANCELADO", response.status());
+        assertEquals(0, inventory.getQuantidadeReservada());
+    }
+
+    @Test
+    void changeStatus_toCancelado_fromFinalizado_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.FINALIZADO);
+
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class,
+                () -> orderService.changeStatus(order.getId(), "CANCELADO", authentication));
+    }
+
+    @Test
+    void delete_withCriadoOrder_callsRepositoryDelete() {
+        Order order = criadoOrderWith(5);
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
 
         orderService.delete(order.getId());
@@ -246,9 +284,9 @@ class OrderServiceTest {
     }
 
     @Test
-    void delete_withAttendedOrder_throwsBadRequestException() {
-        Order order = pendingOrderWith(5);
-        order.setStatus(OrderStatus.ATENDIDO);
+    void delete_withConfirmadoOrder_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.CONFIRMADO);
         when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
 
         assertThrows(BadRequestException.class, () -> orderService.delete(order.getId()));
@@ -264,8 +302,8 @@ class OrderServiceTest {
     }
 
     @Test
-    void update_withPendingOrder_replacesItemsAndRecalculatesTotal() {
-        Order order = pendingOrderWith(5);
+    void update_withCriadoOrder_replacesItemsAndRecalculatesTotal() {
+        Order order = criadoOrderWith(5);
         Product seringa = Product.builder().id(UUID.randomUUID()).nome("Seringa").precoBase(new BigDecimal("5.00")).build();
         CreateOrderRequest request = new CreateOrderRequest(
                 customer.getId(), List.of(new OrderItemRequest(seringa.getId(), 3)), null, null, "obs");
@@ -282,9 +320,9 @@ class OrderServiceTest {
     }
 
     @Test
-    void update_withAttendedOrder_throwsBadRequestException() {
-        Order order = pendingOrderWith(5);
-        order.setStatus(OrderStatus.ATENDIDO);
+    void update_withConfirmadoOrder_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.CONFIRMADO);
         CreateOrderRequest request = new CreateOrderRequest(
                 customer.getId(), List.of(new OrderItemRequest(luva.getId(), 1)), null, null, null);
 
@@ -292,5 +330,87 @@ class OrderServiceTest {
 
         assertThrows(BadRequestException.class, () -> orderService.update(order.getId(), request, authentication));
         verify(orderRepository, never()).saveAndFlush(any(Order.class));
+    }
+
+    @Test
+    void changeStatus_toConfirmado_withCriadoOrder_setsDataConfirmado() {
+        Order order = criadoOrderWith(5);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        OrderResponse response = orderService.changeStatus(order.getId(), "CONFIRMADO", authentication);
+
+        assertEquals("CONFIRMADO", response.status());
+        assertNotNull(order.getDataConfirmado());
+    }
+
+    @Test
+    void changeStatus_toConfirmado_withNonCriadoOrder_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.SEPARADO);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class,
+                () -> orderService.changeStatus(order.getId(), "CONFIRMADO", authentication));
+        assertEquals(OrderStatus.SEPARADO, order.getStatus());
+    }
+
+    @Test
+    void changeStatus_toPronte_withSeparadoOrder_setsDataPronte() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.SEPARADO);
+        order.setDataConfirmado(java.time.LocalDateTime.now());
+        order.setDataSeparado(java.time.LocalDateTime.now());
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        OrderResponse response = orderService.changeStatus(order.getId(), "PRONTO", authentication);
+
+        assertEquals("PRONTO", response.status());
+        assertNotNull(order.getDataPronte());
+    }
+
+    @Test
+    void changeStatus_toPronte_withNonSeparadoOrder_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        // CRIADO → PRONTO sem passar por CONFIRMADO/SEPARADO deve falhar
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class,
+                () -> orderService.changeStatus(order.getId(), "PRONTO", authentication));
+        assertEquals(OrderStatus.CRIADO, order.getStatus());
+    }
+
+    @Test
+    void changeStatus_toCancelado_fromPronte_releasesReservation() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.PRONTO);
+        Inventory inventory = Inventory.builder()
+                .id(UUID.randomUUID()).product(luva).quantidade(100).quantidadeReservada(5).build();
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        when(inventoryRepository.findByProductId(luva.getId())).thenReturn(Optional.of(inventory));
+
+        OrderResponse response = orderService.changeStatus(order.getId(), "CANCELADO", authentication);
+
+        assertEquals("CANCELADO", response.status());
+        assertEquals(0, inventory.getQuantidadeReservada());
+    }
+
+    @Test
+    void changeStatus_toCancelado_fromCriado_doesNotTouchInventory() {
+        Order order = criadoOrderWith(5);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        OrderResponse response = orderService.changeStatus(order.getId(), "CANCELADO", authentication);
+
+        assertEquals("CANCELADO", response.status());
+        verify(inventoryRepository, never()).findByProductId(any());
+    }
+
+    @Test
+    void changeStatus_withUnsupportedStatus_throwsBadRequestException() {
+        Order order = criadoOrderWith(5);
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(BadRequestException.class,
+                () -> orderService.changeStatus(order.getId(), "INVALIDO", authentication));
     }
 }
