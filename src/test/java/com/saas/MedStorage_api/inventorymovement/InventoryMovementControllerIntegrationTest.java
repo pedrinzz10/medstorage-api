@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -123,5 +124,82 @@ class InventoryMovementControllerIntegrationTest {
                 .andExpect(jsonPath("$.content[0].productId").value(productId))
                 .andExpect(jsonPath("$.content[0].tipo").exists())
                 .andExpect(jsonPath("$.content[0].quantidade").exists());
+    }
+
+    // ── POST /api/inventory/movements ──────────────────────────────────────────
+
+    @Test
+    void adjust_withoutToken_returns401() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":10,\"motivo\":\"Reposição\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void adjust_withVendedorRole_returns403() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":10,\"motivo\":\"Reposição\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adjust_withGerenteRole_returns201() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":20,\"motivo\":\"Reposição mensal\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tipo", is("IN")))
+                .andExpect(jsonPath("$.quantidade", is(20)))
+                .andExpect(jsonPath("$.referenciaTipo", is("MANUAL")));
+    }
+
+    @Test
+    void adjust_withAdminRole_incrementsInventory() throws Exception {
+        String productId = firstActiveProductId();
+
+        int quantidadeAntes = Integer.parseInt(
+                mockMvc.perform(get("/api/inventory/" + productId)
+                                .header("Authorization", "Bearer " + adminToken()))
+                        .andExpect(status().isOk())
+                        .andReturn().getResponse().getContentAsString()
+                        .split("\"quantidadeAtual\":")[1].split("[,}]")[0].trim());
+
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":50,\"motivo\":\"Compra NF-123\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantidadeAtual", is(quantidadeAntes + 50)));
+    }
+
+    @Test
+    void adjust_withInvalidQuantity_returns400() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":0,\"motivo\":\"Invalido\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void adjust_withBlankMotivo_returns400() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":5,\"motivo\":\"\"}"))
+                .andExpect(status().isBadRequest());
     }
 }
