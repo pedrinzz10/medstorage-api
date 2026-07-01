@@ -120,10 +120,12 @@ public class OrderService {
         return response;
     }
 
+    @Transactional(readOnly = true)
     public OrderResponse findById(UUID id) {
         return OrderResponse.from(getOrThrow(id));
     }
 
+    @Transactional(readOnly = true)
     public Page<OrderResponse> findAll(
             OrderStatus status,
             UUID customerId,
