@@ -1,5 +1,6 @@
 package com.saas.MedStorage_api.order.service;
 
+import com.saas.MedStorage_api.batch.service.BatchAllocationService;
 import com.saas.MedStorage_api.commission.entity.Commission;
 import com.saas.MedStorage_api.commission.repository.CommissionRepository;
 import com.saas.MedStorage_api.customer.entity.Customer;
@@ -53,6 +54,7 @@ public class OrderService {
     private final InventoryMovementRepository movementRepository;
     private final CommissionRepository commissionRepository;
     private final OrderNotificationService notificationService;
+    private final BatchAllocationService batchAllocationService;
 
     public OrderService(
             OrderRepository orderRepository,
@@ -62,7 +64,8 @@ public class OrderService {
             InventoryRepository inventoryRepository,
             InventoryMovementRepository movementRepository,
             CommissionRepository commissionRepository,
-            OrderNotificationService notificationService) {
+            OrderNotificationService notificationService,
+            BatchAllocationService batchAllocationService) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.productRepository = productRepository;
@@ -71,6 +74,7 @@ public class OrderService {
         this.movementRepository = movementRepository;
         this.commissionRepository = commissionRepository;
         this.notificationService = notificationService;
+        this.batchAllocationService = batchAllocationService;
     }
 
     @Transactional
@@ -231,6 +235,8 @@ public class OrderService {
             }
             inventory.setQuantidadeReservada(inventory.getQuantidadeReservada() + item.getQuantidade());
             inventoryRepository.save(inventory);
+
+            batchAllocationService.allocateFefo(item);
         }
         order.setStatus(OrderStatus.SEPARADO);
         order.setDataSeparado(LocalDateTime.now());
@@ -305,6 +311,8 @@ public class OrderService {
             inventory.setQuantidadeReservada(
                     Math.max(0, inventory.getQuantidadeReservada() - item.getQuantidade()));
             inventoryRepository.save(inventory);
+
+            batchAllocationService.releaseAllocation(item);
         }
     }
 

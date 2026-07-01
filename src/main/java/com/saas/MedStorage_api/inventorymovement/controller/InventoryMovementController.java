@@ -2,6 +2,7 @@ package com.saas.MedStorage_api.inventorymovement.controller;
 
 import com.saas.MedStorage_api.inventorymovement.dto.InventoryMovementResponse;
 import com.saas.MedStorage_api.inventorymovement.dto.StockAdjustmentRequest;
+import com.saas.MedStorage_api.inventorymovement.dto.StockCountRequest;
 import com.saas.MedStorage_api.inventorymovement.service.InventoryMovementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -58,5 +59,20 @@ public class InventoryMovementController {
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(movementService.adjust(request, authentication));
+    }
+
+    @Operation(summary = "Registrar contagem cíclica", description = "Reconcilia a quantidade física contada com o estoque do sistema, gerando um movimento IN ou OUT com a diferença. Requer GERENTE_ESTOQUE ou ADMIN")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Contagem registrada e estoque reconciliado"),
+        @ApiResponse(responseCode = "400", description = "Quantidade inválida ou nenhuma divergência encontrada"),
+        @ApiResponse(responseCode = "404", description = "Produto não encontrado no estoque")
+    })
+    @PostMapping("/count")
+    @PreAuthorize("hasAnyRole('GERENTE_ESTOQUE', 'ADMIN')")
+    public ResponseEntity<InventoryMovementResponse> registerCount(
+            @Valid @RequestBody StockCountRequest request,
+            Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(movementService.registerCount(request, authentication));
     }
 }

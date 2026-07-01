@@ -21,6 +21,7 @@ class ProductControllerIntegrationTest {
     private static final String ADMIN_EMAIL = "admin@distribuidor.com";
     private static final char[] ADMIN_SECRET = {'A', 'd', 'm', 'i', 'n', '1', '2', '3', '!'};
     private static final char[] VENDEDOR_SECRET = {'V', 'e', 'n', 'd', 'e', 'd', 'o', 'r', '1', '2', '3', '!'};
+    private static final char[] GERENTE_SECRET = {'G', 'e', 'r', 'e', 'n', 't', 'e', '1', '2', '3', '!'};
 
     @Autowired
     private MockMvc mockMvc;
@@ -39,6 +40,10 @@ class ProductControllerIntegrationTest {
 
     private String vendedorToken() throws Exception {
         return tokenFor("vendedor1@distribuidor.com", VENDEDOR_SECRET);
+    }
+
+    private String gerenteToken() throws Exception {
+        return tokenFor("gerente@distribuidor.com", GERENTE_SECRET);
     }
 
     @Test
@@ -167,5 +172,37 @@ class ProductControllerIntegrationTest {
         mockMvc.perform(delete("/api/products/" + productId)
                         .header("Authorization", "Bearer " + vendedorToken()))
                 .andExpect(status().isForbidden());
+    }
+
+    // ── GET /api/products/abc-analysis ──────────────────────────────────────────
+
+    @Test
+    void abcAnalysis_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/products/abc-analysis"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void abcAnalysis_withVendedorToken_returns403() throws Exception {
+        mockMvc.perform(get("/api/products/abc-analysis")
+                        .header("Authorization", "Bearer " + vendedorToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void abcAnalysis_withGerenteToken_returns200WithClassifiedProducts() throws Exception {
+        mockMvc.perform(get("/api/products/abc-analysis")
+                        .header("Authorization", "Bearer " + gerenteToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].classe").exists())
+                .andExpect(jsonPath("$[0].percentualAcumulado").exists());
+    }
+
+    @Test
+    void abcAnalysis_withAdminToken_returns200() throws Exception {
+        mockMvc.perform(get("/api/products/abc-analysis")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk());
     }
 }

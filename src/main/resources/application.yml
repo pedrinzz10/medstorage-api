@@ -50,6 +50,10 @@ app:
   mail:
     from: ${MAIL_USERNAME:no-reply@distribuidor.com}
     from-name: ${MAIL_FROM_NAME:MedStorage}
+  stock:
+    low-alert-enabled: ${STOCK_ALERT_ENABLED:true}
+    low-alert-cron: ${STOCK_ALERT_CRON:0 0 8 * * *}
+    expiry-alert-days: ${STOCK_EXPIRY_ALERT_DAYS:30}
 
 management:
   health:

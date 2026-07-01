@@ -133,7 +133,7 @@ class InventoryMovementControllerIntegrationTest {
         String productId = firstActiveProductId();
         mockMvc.perform(post("/api/inventory/movements")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":10,\"motivo\":\"Reposição\"}"))
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":10,\"motivo\":\"Reposição\",\"lote\":\"L001\",\"validade\":\"2030-01-01\"}"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -143,7 +143,7 @@ class InventoryMovementControllerIntegrationTest {
         mockMvc.perform(post("/api/inventory/movements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + vendedorToken())
-                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":10,\"motivo\":\"Reposição\"}"))
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":10,\"motivo\":\"Reposição\",\"lote\":\"L001\",\"validade\":\"2030-01-01\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -153,7 +153,7 @@ class InventoryMovementControllerIntegrationTest {
         mockMvc.perform(post("/api/inventory/movements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + gerenteToken())
-                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":20,\"motivo\":\"Reposição mensal\"}"))
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":20,\"motivo\":\"Reposição mensal\",\"lote\":\"L002\",\"validade\":\"2030-01-01\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.tipo", is("IN")))
                 .andExpect(jsonPath("$.quantidade", is(20)))
@@ -174,7 +174,7 @@ class InventoryMovementControllerIntegrationTest {
         mockMvc.perform(post("/api/inventory/movements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + adminToken())
-                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":50,\"motivo\":\"Compra NF-123\"}"))
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":50,\"motivo\":\"Compra NF-123\",\"lote\":\"L003\",\"validade\":\"2030-01-01\"}"))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/inventory/" + productId)
@@ -189,7 +189,7 @@ class InventoryMovementControllerIntegrationTest {
         mockMvc.perform(post("/api/inventory/movements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + adminToken())
-                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":0,\"motivo\":\"Invalido\"}"))
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":0,\"motivo\":\"Invalido\",\"lote\":\"L004\",\"validade\":\"2030-01-01\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -199,7 +199,121 @@ class InventoryMovementControllerIntegrationTest {
         mockMvc.perform(post("/api/inventory/movements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + adminToken())
-                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":5,\"motivo\":\"\"}"))
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":5,\"motivo\":\"\",\"lote\":\"L005\",\"validade\":\"2030-01-01\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void adjust_withPastValidade_returns400() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":5,\"motivo\":\"Reposição\",\"lote\":\"L006\",\"validade\":\"2000-01-01\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void adjust_withNewLote_createsBatch() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":30,\"motivo\":\"Compra NF-456\",\"lote\":\"LOTE-NOVO\",\"validade\":\"2030-06-01\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/products/" + productId + "/batches")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.lote == 'LOTE-NOVO')].quantidade").value(org.hamcrest.Matchers.contains(30)));
+    }
+
+    @Test
+    void adjust_withExistingLote_sumsQuantityInsteadOfDuplicating() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":10,\"motivo\":\"Compra 1\",\"lote\":\"LOTE-REPETIDO\",\"validade\":\"2030-06-01\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/inventory/movements")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidade\":15,\"motivo\":\"Compra 2\",\"lote\":\"LOTE-REPETIDO\",\"validade\":\"2030-06-01\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/products/" + productId + "/batches")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.lote == 'LOTE-REPETIDO')].quantidade").value(org.hamcrest.Matchers.contains(25)))
+                .andExpect(jsonPath("$[?(@.lote == 'LOTE-REPETIDO')]", org.hamcrest.Matchers.hasSize(1)));
+    }
+
+    // ── POST /api/inventory/movements/count ─────────────────────────────────────
+
+    @Test
+    void registerCount_withoutToken_returns401() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements/count")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"productId\":\"" + productId + "\",\"quantidadeContada\":5,\"observacao\":\"Contagem\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void registerCount_withVendedorRole_returns403() throws Exception {
+        String productId = firstActiveProductId();
+        mockMvc.perform(post("/api/inventory/movements/count")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidadeContada\":5,\"observacao\":\"Contagem\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void registerCount_withDivergentQuantity_returns201AndReconciles() throws Exception {
+        String productId = firstActiveProductId();
+
+        int quantidadeAntes = Integer.parseInt(
+                mockMvc.perform(get("/api/inventory/" + productId)
+                                .header("Authorization", "Bearer " + adminToken()))
+                        .andExpect(status().isOk())
+                        .andReturn().getResponse().getContentAsString()
+                        .split("\"quantidadeAtual\":")[1].split("[,}]")[0].trim());
+
+        mockMvc.perform(post("/api/inventory/movements/count")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidadeContada\":" + (quantidadeAntes + 15)
+                                + ",\"observacao\":\"Contagem mensal\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tipo", is("IN")))
+                .andExpect(jsonPath("$.quantidade", is(15)))
+                .andExpect(jsonPath("$.referenciaTipo", is("CYCLE_COUNT")));
+
+        mockMvc.perform(get("/api/inventory/" + productId)
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantidadeAtual", is(quantidadeAntes + 15)));
+    }
+
+    @Test
+    void registerCount_withSameQuantity_returns400() throws Exception {
+        String productId = firstActiveProductId();
+
+        int quantidadeAtual = Integer.parseInt(
+                mockMvc.perform(get("/api/inventory/" + productId)
+                                .header("Authorization", "Bearer " + adminToken()))
+                        .andExpect(status().isOk())
+                        .andReturn().getResponse().getContentAsString()
+                        .split("\"quantidadeAtual\":")[1].split("[,}]")[0].trim());
+
+        mockMvc.perform(post("/api/inventory/movements/count")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"productId\":\"" + productId + "\",\"quantidadeContada\":" + quantidadeAtual
+                                + ",\"observacao\":\"Sem divergência\"}"))
                 .andExpect(status().isBadRequest());
     }
 }
