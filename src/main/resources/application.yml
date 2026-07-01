@@ -41,7 +41,9 @@ jwt:
 
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+    # Dev: qualquer porta localhost (Vite 5173, CRA 3000, etc.). Producao deve
+    # definir CORS_ALLOWED_ORIGINS com as origens explicitas do frontend.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}
   trusted-proxies: ${TRUSTED_PROXIES:}
   cookie:
     secure: ${COOKIE_SECURE:false}
