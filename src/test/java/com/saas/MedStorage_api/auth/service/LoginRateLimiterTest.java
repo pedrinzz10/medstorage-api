@@ -43,12 +43,15 @@ class LoginRateLimiterTest {
 
     @Test
     void windowResetAfterExpiry() throws InterruptedException {
-        LoginRateLimiter shortWindow = new LoginRateLimiter(2, 0);
+        // Janela de 1s: as 3 chamadas rápidas caem na mesma janela (bloqueio
+        // determinístico), e o sleep > 1s garante a expiração. Usar janela 0
+        // tornava o teste dependente de o relógio avançar 1ms entre chamadas.
+        LoginRateLimiter shortWindow = new LoginRateLimiter(2, 1);
         shortWindow.isAllowed("192.168.1.1");
         shortWindow.isAllowed("192.168.1.1");
         assertFalse(shortWindow.isAllowed("192.168.1.1"), "Should be blocked at 3rd attempt");
 
-        Thread.sleep(10);
+        Thread.sleep(1_100);
         assertTrue(shortWindow.isAllowed("192.168.1.1"), "Window expired — should be allowed again");
     }
 
