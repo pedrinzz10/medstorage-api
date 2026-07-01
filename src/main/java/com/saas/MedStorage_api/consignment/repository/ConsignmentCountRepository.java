@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface ConsignmentCountRepository extends JpaRepository<ConsignmentCount, UUID> {
 
     List<ConsignmentCount> findByCustomer_IdOrderByDataContagemDesc(UUID customerId);
+
+    List<ConsignmentCount> findAllByOrderByDataContagemDesc();
 }

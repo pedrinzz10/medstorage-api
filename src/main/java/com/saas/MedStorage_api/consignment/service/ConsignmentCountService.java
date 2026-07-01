@@ -99,9 +99,16 @@ public class ConsignmentCountService {
         return ConsignmentCountResponse.from(saved);
     }
 
+    /**
+     * @param customerId opcional — quando nulo, retorna o histórico completo
+     *                    de todos os clientes (mais recente primeiro).
+     */
     @Transactional(readOnly = true)
     public List<ConsignmentCountResponse> findByCustomer(UUID customerId) {
-        return consignmentCountRepository.findByCustomer_IdOrderByDataContagemDesc(customerId).stream()
+        List<ConsignmentCount> counts = customerId != null
+                ? consignmentCountRepository.findByCustomer_IdOrderByDataContagemDesc(customerId)
+                : consignmentCountRepository.findAllByOrderByDataContagemDesc();
+        return counts.stream()
                 .map(ConsignmentCountResponse::from)
                 .toList();
     }

@@ -46,10 +46,11 @@ public class ConsignmentCountController {
         return ResponseEntity.status(HttpStatus.CREATED).body(consignmentCountService.registerCount(request, authentication));
     }
 
-    @Operation(summary = "Histórico de contagens de um cliente")
-    @ApiResponse(responseCode = "200", description = "Lista de contagens, mais recente primeiro")
+    @Operation(summary = "Histórico de contagens", description = "Lista todas as contagens registradas, mais recente primeiro. Filtro opcional por cliente")
+    @ApiResponse(responseCode = "200", description = "Lista de contagens")
     @GetMapping
-    public ResponseEntity<List<ConsignmentCountResponse>> findByCustomer(@RequestParam UUID customerId) {
+    public ResponseEntity<List<ConsignmentCountResponse>> findByCustomer(
+            @RequestParam(required = false) UUID customerId) {
         return ResponseEntity.ok(consignmentCountService.findByCustomer(customerId));
     }
 }

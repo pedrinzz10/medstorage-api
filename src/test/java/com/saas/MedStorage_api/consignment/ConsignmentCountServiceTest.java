@@ -131,6 +131,24 @@ class ConsignmentCountServiceTest {
     }
 
     @Test
+    void findByCustomer_withNullCustomerId_returnsAllCounts() {
+        consignmentCountService.findByCustomer(null);
+
+        org.mockito.Mockito.verify(consignmentCountRepository).findAllByOrderByDataContagemDesc();
+        org.mockito.Mockito.verify(consignmentCountRepository, org.mockito.Mockito.never())
+                .findByCustomer_IdOrderByDataContagemDesc(any());
+    }
+
+    @Test
+    void findByCustomer_withCustomerId_filtersByCustomer() {
+        consignmentCountService.findByCustomer(customer.getId());
+
+        org.mockito.Mockito.verify(consignmentCountRepository).findByCustomer_IdOrderByDataContagemDesc(customer.getId());
+        org.mockito.Mockito.verify(consignmentCountRepository, org.mockito.Mockito.never())
+                .findAllByOrderByDataContagemDesc();
+    }
+
+    @Test
     void registerCount_withVisitId_marksVisitAsRealizada() {
         ConsignmentItem item = itemComSaldo(10, 0, 0);
         ConsignmentVisit visit = ConsignmentVisit.builder().id(UUID.randomUUID()).customer(customer)
