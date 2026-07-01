@@ -26,7 +26,7 @@ public class SecurityConfig {
     private final JwtProvider jwtProvider;
     private final UserRepository userRepository;
 
-    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:8080}")
+    @Value("${app.cors.allowed-origins:http://localhost:*,http://127.0.0.1:*}")
     private List<String> allowedOrigins;
 
     public SecurityConfig(JwtProvider jwtProvider, UserRepository userRepository) {
@@ -61,10 +61,16 @@ public class SecurityConfig {
 
     private CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        // setAllowedOriginPatterns (não setAllowedOrigins) permite curingas como
+        // http://localhost:* e ainda funciona com credenciais — o Spring reflete
+        // a origem exata da requisição, nunca o literal "*".
         configuration.setAllowedOriginPatterns(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         configuration.setExposedHeaders(List.of("Authorization"));
+        // Obrigatório: o frontend envia o cookie JWT via credentials:'include'.
+        // Sem isto o navegador bloqueia a resposta mesmo com a origem permitida.
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
