@@ -176,4 +176,38 @@ class ConsignmentCountControllerIntegrationTest {
 
         org.junit.jupiter.api.Assertions.assertNotNull(consignmentId);
     }
+
+    @Test
+    void findAll_withoutCustomerIdFilter_returnsFullHistory() throws Exception {
+        String customerId = newCustomerId();
+        String productId = firstActiveProductId();
+
+        String consignmentJson = mockMvc.perform(post("/api/consignments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + vendedorToken())
+                        .content("{\"customerId\":\"" + customerId
+                                + "\",\"items\":[{\"productId\":\"" + productId + "\",\"quantidade\":4}]}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String itemId = consignmentJson.split("\"items\":\\[\\{\"id\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(post("/api/consignments/counts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + gerenteToken())
+                        .content("{\"customerId\":\"" + customerId + "\",\"dataContagem\":\"2030-03-01\",\"items\":[{\"consignmentItemId\":\""
+                                + itemId + "\",\"quantidadeContada\":4}]}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/consignments/counts")
+                        .header("Authorization", "Bearer " + gerenteToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[?(@.customerId == '" + customerId + "')]").exists());
+    }
+
+    @Test
+    void findAll_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/consignments/counts"))
+                .andExpect(status().isUnauthorized());
+    }
 }
