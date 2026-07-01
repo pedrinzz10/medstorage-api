@@ -1,5 +1,6 @@
 package com.saas.MedStorage_api.user.service;
 
+import com.saas.MedStorage_api.auth.dto.UserSummaryResponse;
 import com.saas.MedStorage_api.exception.BadRequestException;
 import com.saas.MedStorage_api.exception.ResourceNotFoundException;
 import com.saas.MedStorage_api.user.dto.UpdateUserRequest;
@@ -12,11 +13,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
 @Service
 public class UserService {
+
+    private static final List<UserRole> STAFF_ROLES = List.of(UserRole.ADMIN, UserRole.GERENTE_ESTOQUE);
 
     private final UserRepository userRepository;
 
@@ -26,6 +30,17 @@ public class UserService {
 
     public Page<UserResponse> findAll(Pageable pageable) {
         return userRepository.findAll(pageable).map(UserResponse::from);
+    }
+
+    /**
+     * Lista enxuta de ADMIN/GERENTE_ESTOQUE ativos, para atribuição de
+     * funcionário em visitas de consignação — não expõe o cadastro completo
+     * de usuários, que é restrito a ADMIN via findAll().
+     */
+    public List<UserSummaryResponse> findStaff() {
+        return userRepository.findByRoleInAndAtivoTrue(STAFF_ROLES).stream()
+                .map(UserSummaryResponse::from)
+                .toList();
     }
 
     public UserResponse findById(UUID id) {

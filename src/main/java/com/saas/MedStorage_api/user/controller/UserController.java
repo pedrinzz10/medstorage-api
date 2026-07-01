@@ -1,5 +1,6 @@
 package com.saas.MedStorage_api.user.controller;
 
+import com.saas.MedStorage_api.auth.dto.UserSummaryResponse;
 import com.saas.MedStorage_api.user.dto.UpdateUserRequest;
 import com.saas.MedStorage_api.user.dto.UserResponse;
 import com.saas.MedStorage_api.user.service.UserService;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Usuários", description = "Gerenciamento de usuários. Requer ADMIN")
@@ -39,6 +41,14 @@ public class UserController {
     @GetMapping
     public ResponseEntity<Page<UserResponse>> findAll(@PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(userService.findAll(pageable));
+    }
+
+    @Operation(summary = "Listar funcionários para atribuição de visitas", description = "Lista enxuta (id/nome/email/role) de ADMIN e GERENTE_ESTOQUE ativos. Requer GERENTE_ESTOQUE ou ADMIN")
+    @ApiResponse(responseCode = "200", description = "Lista de funcionários")
+    @GetMapping("/staff")
+    @PreAuthorize("hasAnyRole('GERENTE_ESTOQUE', 'ADMIN')")
+    public ResponseEntity<List<UserSummaryResponse>> staff() {
+        return ResponseEntity.ok(userService.findStaff());
     }
 
     @Operation(summary = "Buscar usuário por ID")

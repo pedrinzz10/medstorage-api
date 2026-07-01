@@ -19,6 +19,7 @@ class UserControllerIntegrationTest {
 
     private static final char[] ADMIN_SECRET = {'A', 'd', 'm', 'i', 'n', '1', '2', '3', '!'};
     private static final char[] VENDEDOR_SECRET = {'V', 'e', 'n', 'd', 'e', 'd', 'o', 'r', '1', '2', '3', '!'};
+    private static final char[] GERENTE_SECRET = {'G', 'e', 'r', 'e', 'n', 't', 'e', '1', '2', '3', '!'};
 
     @Autowired
     private MockMvc mockMvc;
@@ -37,6 +38,10 @@ class UserControllerIntegrationTest {
 
     private String vendedorToken() throws Exception {
         return tokenFor("vendedor1@distribuidor.com", VENDEDOR_SECRET);
+    }
+
+    private String gerenteToken() throws Exception {
+        return tokenFor("gerente@distribuidor.com", GERENTE_SECRET);
     }
 
     @Test
@@ -123,5 +128,37 @@ class UserControllerIntegrationTest {
                         .header("Authorization", "Bearer " + vendedorToken())
                         .content("{\"nome\":\"Hack\",\"role\":\"admin\",\"ativo\":true}"))
                 .andExpect(status().isForbidden());
+    }
+
+    // ── GET /api/users/staff ─────────────────────────────────────────────────
+
+    @Test
+    void staff_withoutToken_returns401() throws Exception {
+        mockMvc.perform(get("/api/users/staff"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void staff_withVendedorToken_returns403() throws Exception {
+        mockMvc.perform(get("/api/users/staff")
+                        .header("Authorization", "Bearer " + vendedorToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void staff_withGerenteToken_returnsOnlyAdminAndGerenteEstoque() throws Exception {
+        mockMvc.perform(get("/api/users/staff")
+                        .header("Authorization", "Bearer " + gerenteToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[?(@.role == 'vendedor')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.role == 'admin')]").exists());
+    }
+
+    @Test
+    void staff_withAdminToken_returns200() throws Exception {
+        mockMvc.perform(get("/api/users/staff")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk());
     }
 }
