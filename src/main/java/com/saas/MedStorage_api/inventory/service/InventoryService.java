@@ -51,7 +51,9 @@ public class InventoryService {
                 disponivel,
                 inventory.getQuantidadeReservada(),
                 product.getEstoqueMinimo(),
-                resolveStatus(disponivel, product.getEstoqueMinimo()));
+                resolveStatus(disponivel, product.getEstoqueMinimo()),
+                product.getPrecoBase(),
+                product.getUnidade());
     }
 
     private String resolveStatus(int quantidade, Integer estoqueMinimo) {

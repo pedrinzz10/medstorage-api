@@ -1,10 +1,20 @@
 package com.saas.MedStorage_api.inventorymovement.service;
 
+import com.saas.MedStorage_api.exception.ResourceNotFoundException;
+import com.saas.MedStorage_api.inventory.entity.Inventory;
+import com.saas.MedStorage_api.inventory.repository.InventoryRepository;
 import com.saas.MedStorage_api.inventorymovement.dto.InventoryMovementResponse;
+import com.saas.MedStorage_api.inventorymovement.dto.StockAdjustmentRequest;
+import com.saas.MedStorage_api.inventorymovement.entity.InventoryMovement;
+import com.saas.MedStorage_api.inventorymovement.enums.MovementType;
 import com.saas.MedStorage_api.inventorymovement.repository.InventoryMovementRepository;
+import com.saas.MedStorage_api.user.entity.User;
+import com.saas.MedStorage_api.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -12,9 +22,16 @@ import java.util.UUID;
 public class InventoryMovementService {
 
     private final InventoryMovementRepository movementRepository;
+    private final InventoryRepository inventoryRepository;
+    private final UserRepository userRepository;
 
-    public InventoryMovementService(InventoryMovementRepository movementRepository) {
+    public InventoryMovementService(
+            InventoryMovementRepository movementRepository,
+            InventoryRepository inventoryRepository,
+            UserRepository userRepository) {
         this.movementRepository = movementRepository;
+        this.inventoryRepository = inventoryRepository;
+        this.userRepository = userRepository;
     }
 
     public Page<InventoryMovementResponse> findAll(UUID productId, Pageable pageable) {
@@ -22,5 +39,29 @@ public class InventoryMovementService {
             return movementRepository.findByProduct_Id(productId, pageable).map(InventoryMovementResponse::from);
         }
         return movementRepository.findAll(pageable).map(InventoryMovementResponse::from);
+    }
+
+    @Transactional
+    public InventoryMovementResponse adjust(StockAdjustmentRequest request, Authentication authentication) {
+        Inventory inventory = inventoryRepository.findByProductId(request.productId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Inventory not found for product " + request.productId()));
+
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        inventory.setQuantidade(inventory.getQuantidade() + request.quantidade());
+        inventoryRepository.save(inventory);
+
+        InventoryMovement movement = InventoryMovement.builder()
+                .product(inventory.getProduct())
+                .tipo(MovementType.IN)
+                .quantidade(request.quantidade())
+                .motivo(request.motivo())
+                .referenciaTipo("MANUAL")
+                .criadoPor(user)
+                .build();
+
+        return InventoryMovementResponse.from(movementRepository.save(movement));
     }
 }

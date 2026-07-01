@@ -10,6 +10,8 @@ public record InventoryStatusResponse(
         int disponivel,
         int reservada,
         Integer estoqueMinimo,
-        String statusEstoque
+        String statusEstoque,
+        java.math.BigDecimal precoBase,
+        String unidade
 ) {
 }
