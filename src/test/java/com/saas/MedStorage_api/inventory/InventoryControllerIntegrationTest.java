@@ -16,16 +16,25 @@ class InventoryControllerIntegrationTest {
 
     private static final String ADMIN_EMAIL = "admin@distribuidor.com";
     private static final char[] ADMIN_SECRET = {'A', 'd', 'm', 'i', 'n', '1', '2', '3', '!'};
+    private static final char[] VENDEDOR_SECRET = {'V', 'e', 'n', 'd', 'e', 'd', 'o', 'r', '1', '2', '3', '!'};
 
     @Autowired
     private MockMvc mockMvc;
 
-    private String adminToken() throws Exception {
+    private String tokenFor(String email, char[] secret) throws Exception {
         String setCookie = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + ADMIN_EMAIL + "\",\"password\":\"" + new String(ADMIN_SECRET) + "\"}"))
+                        .content("{\"email\":\"" + email + "\",\"password\":\"" + new String(secret) + "\"}"))
                 .andReturn().getResponse().getHeader("Set-Cookie");
         return setCookie.split("jwt=")[1].split(";")[0];
+    }
+
+    private String adminToken() throws Exception {
+        return tokenFor(ADMIN_EMAIL, ADMIN_SECRET);
+    }
+
+    private String vendedorToken() throws Exception {
+        return tokenFor("vendedor1@distribuidor.com", VENDEDOR_SECRET);
     }
 
     @Test
@@ -80,5 +89,29 @@ class InventoryControllerIntegrationTest {
                 // seed: 0 reservations, so disponivel == quantidadeAtual
                 .andExpect(jsonPath("$[0].reservada").value(0))
                 .andExpect(jsonPath("$[0].disponivel").value(1000));
+    }
+
+    // ── POST /api/inventory/low-stock-alert/trigger ─────────────────────────────
+
+    @Test
+    void triggerLowStockAlert_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/api/inventory/low-stock-alert/trigger"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void triggerLowStockAlert_withVendedorRole_returns403() throws Exception {
+        mockMvc.perform(post("/api/inventory/low-stock-alert/trigger")
+                        .header("Authorization", "Bearer " + vendedorToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void triggerLowStockAlert_withAdminRole_returns200() throws Exception {
+        // seed: nenhum produto crítico, então nenhum email é enviado, mas o endpoint responde 200
+        mockMvc.perform(post("/api/inventory/low-stock-alert/trigger")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.produtosCriticos").value(0));
     }
 }

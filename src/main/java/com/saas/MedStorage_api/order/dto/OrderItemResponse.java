@@ -1,8 +1,10 @@
 package com.saas.MedStorage_api.order.dto;
 
+import com.saas.MedStorage_api.batch.dto.OrderItemBatchResponse;
 import com.saas.MedStorage_api.order.entity.OrderItem;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public record OrderItemResponse(
@@ -11,7 +13,8 @@ public record OrderItemResponse(
         String productNome,
         int quantidade,
         BigDecimal precoUnitario,
-        BigDecimal subtotal
+        BigDecimal subtotal,
+        List<OrderItemBatchResponse> lotes
 ) {
     public static OrderItemResponse from(OrderItem item) {
         return new OrderItemResponse(
@@ -20,6 +23,7 @@ public record OrderItemResponse(
                 item.getProduct().getNome(),
                 item.getQuantidade(),
                 item.getPrecoUnitario(),
-                item.getSubtotal());
+                item.getSubtotal(),
+                item.getLotes().stream().map(OrderItemBatchResponse::from).toList());
     }
 }

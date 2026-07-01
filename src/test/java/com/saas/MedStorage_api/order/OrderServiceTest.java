@@ -1,5 +1,6 @@
 package com.saas.MedStorage_api.order;
 
+import com.saas.MedStorage_api.batch.service.BatchAllocationService;
 import com.saas.MedStorage_api.commission.repository.CommissionRepository;
 import com.saas.MedStorage_api.customer.entity.Customer;
 import com.saas.MedStorage_api.customer.repository.CustomerRepository;
@@ -67,6 +68,8 @@ class OrderServiceTest {
     private CommissionRepository commissionRepository;
     @Mock
     private OrderNotificationService notificationService;
+    @Mock
+    private BatchAllocationService batchAllocationService;
     @Mock
     private Authentication authentication;
 
@@ -201,6 +204,35 @@ class OrderServiceTest {
     }
 
     @Test
+    void changeStatus_toSeparado_withSufficientStock_callsFefoAllocationPerItem() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.CONFIRMADO);
+        Inventory inventory = Inventory.builder().id(UUID.randomUUID()).product(luva).quantidade(100).quantidadeReservada(0).build();
+
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        when(inventoryRepository.findByProductId(luva.getId())).thenReturn(Optional.of(inventory));
+
+        orderService.changeStatus(order.getId(), "SEPARADO", authentication);
+
+        verify(batchAllocationService).allocateFefo(order.getItems().get(0));
+    }
+
+    @Test
+    void changeStatus_toSeparado_whenBatchAllocationFails_propagatesException() {
+        Order order = criadoOrderWith(5);
+        order.setStatus(OrderStatus.CONFIRMADO);
+        Inventory inventory = Inventory.builder().id(UUID.randomUUID()).product(luva).quantidade(100).quantidadeReservada(0).build();
+
+        when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
+        when(inventoryRepository.findByProductId(luva.getId())).thenReturn(Optional.of(inventory));
+        org.mockito.Mockito.doThrow(new InsufficientStockException("Sem lote suficiente"))
+                .when(batchAllocationService).allocateFefo(any(OrderItem.class));
+
+        assertThrows(InsufficientStockException.class,
+                () -> orderService.changeStatus(order.getId(), "SEPARADO", authentication));
+    }
+
+    @Test
     void changeStatus_toSeparado_withAlreadySeparadoOrder_throwsBadRequestException() {
         Order order = criadoOrderWith(5);
         order.setStatus(OrderStatus.SEPARADO);
@@ -260,6 +292,7 @@ class OrderServiceTest {
 
         assertEquals("CANCELADO", response.status());
         assertEquals(0, inventory.getQuantidadeReservada());
+        verify(batchAllocationService).releaseAllocation(order.getItems().get(0));
     }
 
     @Test
